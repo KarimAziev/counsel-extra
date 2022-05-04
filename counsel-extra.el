@@ -617,15 +617,6 @@ If DIRECTORY is nil or missing, the current buffer's value of
                              (bookmark-set x))))
             :caller 'counsel-extra-bookmark))
 
-;;;###autoload
-(defun counsel-extra-add-extra-actions ()
-  "Add extra actions ot all ivy callers."
-  (ivy-add-actions
-   t
-   '(("i" counsel-extra-insert "insert")
-     ("p" counsel-extra-pp "print")
-     ("g" counsel-extra-ivy-browse-url-action "google it"))))
-
 (ivy-set-actions
  'counsel-extra-bookmark
  `(("j" bookmark-jump-other-window "other window")
@@ -637,8 +628,20 @@ If DIRECTORY is nil or missing, the current buffer's value of
    ("r" ,(counsel--apply-bookmark-fn #'counsel-find-file-as-root)
         "open as root")))
 
+;;;###autoload
+(defun counsel-extra-add-extra-actions ()
+  "Add extra actions ot all ivy callers."
+  (interactive)
+  (ivy-add-actions
+   t
+   '(("i" counsel-extra-insert "insert")
+     ("p" counsel-extra-pp "print")
+     ("g" counsel-extra-ivy-browse-url-action "google it"))))
+
+;;;###autoload
 (defun counsel-extra-configure-find-file ()
   "Configure `counsel-find-file' and `read-file-name-internal'."
+  (interactive)
   (ivy-configure 'counsel-find-file
     :occur #'counsel-find-file-occur
     :display-transformer-fn #'counsel-extra-read-file-display-transformer)

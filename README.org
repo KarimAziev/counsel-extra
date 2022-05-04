@@ -1,0 +1,49 @@
+* counsel-extra
+Extra commands and actions for counsel and ivy.
+
+** Commands
+
++ ~counsel-extra-bookmark~
+Forward to `bookmark-jump' or `bookmark-set' if bookmark doesn't exist.
+
++ ~counsel-extra-bookmark-in-other-window~
+Open bookmark in other window.
+
++ ~counsel-extra-find-symbol-in-other-window~ (&optional it)
+Find symbol definition that corresponds to string IT in other window.
+
++ ~counsel-extra-call-in-other-window~ (func &rest args)
+Switch to other window and call FUNC with ARGS.
+
++ ~counsel-extra-open-file-other-window~
+Quit the minibuffer and call `find-file-other-window' action.
+
++ ~counsel-extra-move-file~
+Quit the minibuffer and call `counsel-find-file-move' action.
+
++ ~counsel-extra-delete-file~
+Quit the minibuffer and call `counsel-find-file-delete' action.
+
++ ~counsel-extra-copy-file~
+Quit the minibuffer and call `counsel-find-file-copy' action.
+
++ ~counsel-extra-dired~
+Open file in Dired.
+
++ ~counsel-extra-expand-dir-done~
+Counsel expand dir done.
+
++ ~counsel-extra-expand-dir-maybe~
+Counsel expand dir maybe.
+
++ ~counsel-extra-ivy-mark~ (&optional _c)
+Mark or unmark current ivy candidate and go to the next match.
+
++ ~counsel-extra-ivy-insert~
+Insert ivy marked candidates or current choice.
+
++ ~counsel-extra-switch-to-buffer-other-window~
+Exit minibuffer with `ivy--switch-buffer-other-window-action'.
+
++ ~counsel-extra-ivy-browse-url~
+If current ivy choice is url, open it in browser, else search in google.

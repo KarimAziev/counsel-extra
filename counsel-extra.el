@@ -191,6 +191,10 @@ MODE-FN is a function."
                                  mode-fn
                                  inspect-keymap
                                  display-buff-fn)
+  "Display CONTENT in popup window.
+Optional argument CONTENT is string.
+INSPECT-KEYMAP is keymap.
+MODE-FN is a function."
   (let ((buffer (get-buffer-create "*counsel-pp*"))
         (content (if (or
                       mode-fn
@@ -207,6 +211,7 @@ MODE-FN is a function."
         (insert content)))))
 
 (defun counsel-extra-pp-file (file)
+  "Preview FILE."
   (when-let ((filename (and
                         file
                         (file-readable-p file)
@@ -279,15 +284,15 @@ MODE-FN is a function."
                               (url-hexify-string item))))))
     (browse-url url)))
 
-(defun counsel-extra-ivy-trim-mark-prefix (it)
+(defun counsel-extra-ivy-trim-mark-prefix (item)
+	"Trim `ivy-mark-prefix' prefix from ITEM."
   (if (and
-       it
-       (boundp 'ivy-mark-prefix)
+       item
        ivy-mark-prefix
-       (not (symbolp it))
-       (stringp it))
-      (replace-regexp-in-string (format "^[%s]+" ivy-mark-prefix) "" it)
-    it))
+       (not (symbolp item))
+       (stringp item))
+      (replace-regexp-in-string (format "^[%s]+" ivy-mark-prefix) "" item)
+    item))
 
 (defun counsel-extra-strip-text-props (item)
   "If ITEM is string, return it without text properties.
@@ -382,6 +387,22 @@ If DIRECTORY is nil or missing, the current buffer's value of
     (apply func args)))
 
 ;;;###autoload
+(defun counsel-extra-ivy-copy ()
+  "Copy current ivy candidate without text proerties."
+  (interactive)
+  (let ((item (ivy-state-current ivy-last)))
+    (kill-new (if (stringp item)
+                  (counsel-extra-strip-text-props item)
+                (counsel-extra-strip-text-props (car item))))))
+
+;;;###autoload
+(defun counsel-extra-pp-ivy ()
+  "Print properties of current ivy choice."
+  (interactive)
+  (let ((curr (ivy-state-current ivy-last)))
+    (counsel-extra-pp (text-properties-at 0 curr))))
+
+;;;###autoload
 (defun counsel-extra-ivy-browse-url ()
   "If current ivy choice is url, open it in browser, else search in google."
   (interactive)
@@ -392,9 +413,8 @@ If DIRECTORY is nil or missing, the current buffer's value of
 (defun counsel-extra-switch-to-buffer-other-window ()
   "Exit minibuffer with `ivy--switch-buffer-other-window-action'."
   (interactive)
-  (when (fboundp 'ivy-exit-with-action)
-    (ivy-exit-with-action
-     'ivy--switch-buffer-other-window-action)))
+  (ivy-exit-with-action
+   'ivy--switch-buffer-other-window-action))
 
 ;;;###autoload
 (defun counsel-extra-ivy-insert ()
@@ -434,24 +454,18 @@ If DIRECTORY is nil or missing, the current buffer's value of
          (> ivy--length 0)
          (not (string= curr "./"))
          (setq dir
-               (when (fboundp 'ivy-expand-file-if-directory)
-                 (ivy-expand-file-if-directory
-                  curr))))
+               (ivy-expand-file-if-directory
+                curr)))
         (progn
-          (when (fboundp 'ivy--cd)
-            (ivy--cd dir))
-          (when (fboundp 'ivy--exhibit)
-            (ivy--exhibit)))
+          (ivy--cd dir)
+          (ivy--exhibit))
       (if-let ((ext (member (file-name-extension curr)
                             '("mp4" "mkv" "xlsx" "png" "jpg" "jpeg"
                               "webm" "3gp" "mp4" "MOV"))))
-          (when (fboundp 'ivy-call)
-            (ivy-call))
-        (when (fboundp 'ivy--get-window)
-          (with-selected-window (ivy--get-window ivy-last)
-            (when (fboundp 'counsel-extra-pp-file)
-              (counsel-extra-pp-file
-               (expand-file-name curr ivy--directory)))))))))
+          (ivy-call)
+        (with-selected-window (ivy--get-window ivy-last)
+          (counsel-extra-pp-file
+           (expand-file-name curr ivy--directory)))))))
 
 ;;;###autoload
 (defun counsel-extra-expand-dir-done ()
@@ -467,16 +481,12 @@ If DIRECTORY is nil or missing, the current buffer's value of
          (not
           (string= curr "./"))
          (setq dir
-               (when (fboundp 'ivy-expand-file-if-directory)
-                 (ivy-expand-file-if-directory
-                  curr))))
+               (ivy-expand-file-if-directory
+                curr)))
         (progn
-          (when (fboundp 'ivy--cd)
-            (ivy--cd dir))
-          (when (fboundp 'ivy--exhibit)
-            (ivy--exhibit)))
-      (when (fboundp 'ivy-done)
-        (ivy-done)))))
+          (ivy--cd dir)
+          (ivy--exhibit))
+      (ivy-done))))
 
 ;;;###autoload
 (defun counsel-extra-dired ()
@@ -492,63 +502,9 @@ If DIRECTORY is nil or missing, the current buffer's value of
       (ivy-quit-and-run
         (funcall 'dired parent)))))
 
-;;;###autoload
-(defun counsel-extra-copy-file ()
-    "Quit the minibuffer and call `counsel-find-file-copy' action."
-    (interactive)
-    (when (and
-           (fboundp 'ivy-exit-with-action)
-           (fboundp 'counsel-find-file-copy))
-      (ivy-exit-with-action #'counsel-find-file-copy)))
-
-;;;###autoload
-(defun counsel-extra-delete-file ()
-    "Quit the minibuffer and call `counsel-find-file-delete' action."
-    (interactive)
-    (when (and
-           (fboundp 'ivy-exit-with-action)
-           (fboundp 'counsel-find-file-delete))
-      (ivy-exit-with-action #'counsel-find-file-delete)))
-
-;;;###autoload
-(defun counsel-extra-move-file ()
-    "Quit the minibuffer and call `counsel-find-file-move' action."
-    (interactive)
-    (when (and
-           (fboundp 'ivy-exit-with-action)
-           (fboundp 'counsel-find-file-move))
-      (ivy-exit-with-action #'counsel-find-file-move)))
-
-;;;###autoload
-(defun counsel-extra-open-file-other-window ()
-    "Quit the minibuffer and call `find-file-other-window' action."
-    (interactive)
-    (when (and
-           (fboundp 'ivy-exit-with-action)
-           (fboundp 'find-file-other-window))
-      (ivy-exit-with-action #'find-file-other-window)))
-
-;;;###autoload
-(defun counsel-extra-call-in-other-window (func &rest args)
-  "Switch to other window and call FUNC with ARGS."
-  (interactive)
-  (if (minibuffer-window-active-p (selected-window))
-      (with-minibuffer-selected-window
-        (counsel-extra-call-in-other-window-0 func args))
-    (counsel-extra-call-in-other-window-0 func args)))
-
-;;;###autoload
-(defun counsel-extra-find-symbol-in-other-window (&optional it)
-  "Find symbol definition that corresponds to string IT in other window."
-  (interactive)
-  (unless it (setq it (ivy-state-current ivy-last)))
-  (ivy-quit-and-run
-    (counsel-extra-call-in-other-window 'counsel-extra-find-symbol it)))
-
 (defun counsel-extra-find-symbol (x)
   "Find symbol definition that corresponds to string X."
-  (when (fboundp 'counsel--push-xref-marker)
-    (counsel--push-xref-marker))
+  (counsel--push-xref-marker)
   (let ((full-name (get-text-property 0 'full-name x)))
     (if full-name
         (find-library full-name)
@@ -569,6 +525,47 @@ If DIRECTORY is nil or missing, the current buffer's value of
               (t
                (error "Couldn't find definition of %s"
                       sym)))))))
+
+;;;###autoload
+(defun counsel-extra-copy-file ()
+    "Quit the minibuffer and call `counsel-find-file-copy' action."
+    (interactive)
+    (ivy-exit-with-action #'counsel-find-file-copy))
+
+;;;###autoload
+(defun counsel-extra-delete-file ()
+  "Quit the minibuffer and call `counsel-find-file-delete' action."
+  (interactive)
+  (ivy-exit-with-action #'counsel-find-file-delete))
+
+;;;###autoload
+(defun counsel-extra-move-file ()
+  "Quit the minibuffer and call `counsel-find-file-move' action."
+  (interactive)
+  (ivy-exit-with-action #'counsel-find-file-move))
+
+;;;###autoload
+(defun counsel-extra-open-file-other-window ()
+  "Quit the minibuffer and call `find-file-other-window' action."
+  (interactive)
+  (ivy-exit-with-action #'find-file-other-window))
+
+;;;###autoload
+(defun counsel-extra-call-in-other-window (func &rest args)
+  "Switch to other window and call FUNC with ARGS."
+  (interactive)
+  (if (minibuffer-window-active-p (selected-window))
+      (with-minibuffer-selected-window
+        (counsel-extra-call-in-other-window-0 func args))
+    (counsel-extra-call-in-other-window-0 func args)))
+
+;;;###autoload
+(defun counsel-extra-find-symbol-in-other-window (&optional it)
+  "Find symbol definition that corresponds to string IT in other window."
+  (interactive)
+  (unless it (setq it (ivy-state-current ivy-last)))
+  (ivy-quit-and-run
+    (counsel-extra-call-in-other-window 'counsel-extra-find-symbol it)))
 
 ;;;###autoload
 (defun counsel-extra-bookmark-in-other-window ()
@@ -620,6 +617,15 @@ If DIRECTORY is nil or missing, the current buffer's value of
                              (bookmark-set x))))
             :caller 'counsel-extra-bookmark))
 
+;;;###autoload
+(defun counsel-extra-add-extra-actions ()
+  "Add extra actions ot all ivy callers."
+  (ivy-add-actions
+   t
+   '(("i" counsel-extra-insert "insert")
+     ("p" counsel-extra-pp "print")
+     ("g" counsel-extra-ivy-browse-url-action "google it"))))
+
 (ivy-set-actions
  'counsel-extra-bookmark
  `(("j" bookmark-jump-other-window "other window")
@@ -631,23 +637,17 @@ If DIRECTORY is nil or missing, the current buffer's value of
    ("r" ,(counsel--apply-bookmark-fn #'counsel-find-file-as-root)
         "open as root")))
 
-(ivy-add-actions
- t
- '(("i" counsel-extra-insert "insert")
-   ("p" counsel-extra-pp "km-pp")
-   ("g" counsel-extra-ivy-browse-url-action "google it")))
-
-(add-to-list 'ivy-sort-functions-alist
-             '(read-file-name-internal .
-                                       counsel-extra-ivy-sort-file-function))
-
-(ivy-configure 'read-file-name-internal
-  :sort-fn #'counsel-extra-ivy-sort-file-function
-  :display-transformer-fn #'counsel-extra-read-file-display-transformer)
-
-(ivy-configure 'counsel-find-file
-  :occur #'counsel-find-file-occur
-  :display-transformer-fn #'counsel-extra-read-file-display-transformer)
+(defun counsel-extra-configure-find-file ()
+  "Configure `counsel-find-file' and `read-file-name-internal'."
+  (ivy-configure 'counsel-find-file
+    :occur #'counsel-find-file-occur
+    :display-transformer-fn #'counsel-extra-read-file-display-transformer)
+  (ivy-configure 'read-file-name-internal
+    :sort-fn #'counsel-extra-ivy-sort-file-function
+    :display-transformer-fn #'counsel-extra-read-file-display-transformer)
+  (add-to-list 'ivy-sort-functions-alist
+               '(read-file-name-internal
+                 . counsel-extra-ivy-sort-file-function)))
 
 (provide 'counsel-extra)
 ;;; counsel-extra.el ends here

@@ -652,5 +652,144 @@ If DIRECTORY is nil or missing, the current buffer's value of
                '(read-file-name-internal
                  . counsel-extra-ivy-sort-file-function)))
 
+(defvar counsel-extra-M-X-last-command nil)
+(defvar counsel-extra-M-X-externs nil)
+(defvar counsel-extra-M-x-initial-input nil)
+
+;;;###autoload
+(defun counsel-extra-annotate-transform-get-function-key (sym buffer)
+  "Return string with active key for command SYM in BUFFER.
+SYM should be a symbol."
+  (when (commandp sym)
+    (with-current-buffer buffer
+      (let ((k (where-is-internal sym nil t)))
+        (when k
+          (let ((i (cl-search [?\C-x ?6] k)))
+            (when i
+              (let ((dup (vconcat (substring k 0 i) [f2]
+                                  (substring k (+ i 2))))
+                    (map (current-global-map)))
+                (when (equal (lookup-key map k)
+                             (lookup-key map dup))
+                  (setq k dup)))))
+          (propertize (format "(%s)" (key-description k))
+                      'face 'font-lock-variable-name-face))))))
+
+;;;###autoload
+(defun counsel-extra-annotate-transform-get-function-doc (sym)
+  "Return a stirng with short documentation of symbol SYM or nil.
+SYM should be a symbol."
+  (when-let ((documentation
+              (if (fboundp sym)
+                  (documentation sym t)
+                (documentation-property
+                 sym
+                 'variable-documentation
+                 t))))
+    (and (stringp documentation)
+         (string-match ".*$" documentation)
+         (propertize (format "\s%s" (match-string
+                                     0
+                                     documentation))
+                     'face
+                     'font-lock-negation-char-face))))
+
+;;;###autoload
+(defun counsel-extra-annotate-transform-function-name (name)
+  "Return NAME annotated with its active key binding and documentation.
+NAME should be a string."
+  (or (ignore-errors
+        (let ((buff (if-let ((minw (minibuffer-selected-window)))
+                        (with-selected-window minw
+                          (current-buffer))
+                      (current-buffer)))
+              (sym))
+          (setq sym (intern name))
+          (when (symbolp sym)
+            (let ((result (concat
+                           name "\s"
+                           (string-join
+                            (delete
+                             nil
+                             (list
+                              (counsel-extra-annotate-transform-get-function-key
+                               sym buff)
+                              (counsel-extra-annotate-transform-get-function-doc
+                               sym)))
+                            "\s"))))
+              (cond ((eq sym major-mode)
+                     (propertize result 'face 'font-lock-variable-name-face))
+                    ((and
+                      (memq sym minor-mode-list)
+                      (boundp sym)
+                      (buffer-local-value sym buff))
+                     (propertize result 'face 'font-lock-builtin-face))
+                    (t result))))))
+      name))
+
+(defun counsel-extra-M-X-find-symbol-in-other-window (it)
+  "Find symbol definition that corresponds to string IT in other window."
+  (counsel-extra-call-in-other-window 'counsel-extra-find-symbol it))
+
+;;;###autoload
+(defun counsel-extra-M-X-find-symbol-in-other-window-cmd ()
+  "Quit the minibuffer and call `counsel-extra-M-X-find-symbol-in-other-window'."
+  (interactive)
+  (ivy-exit-with-action #'counsel-extra-M-X-find-symbol-in-other-window))
+
+(defvar counsel-extra-M-x-keymap
+  (let ((map (make-sparse-keymap)))
+    (define-key map (kbd "C-c C-j") #'counsel-find-symbol)
+    (define-key map (kbd "C-c o")
+                #'counsel-extra-M-X-find-symbol-in-other-window-cmd)
+    (define-key map (kbd "C-c C-l") #'counsel--info-lookup-symbol)
+    map))
+
+(defun counsel-extra-M-X-action (cmd)
+  "If minibuffer window active describe CMD, else execute CMD."
+  (if
+      (minibuffer-window-active-p (active-minibuffer-window))
+      (funcall (if (fboundp 'helpful-command)
+                   'helpful-command
+                 'describe-command)
+               (intern-soft cmd))
+    (setq counsel-extra-M-X-last-command ivy--index)
+    (funcall 'counsel-M-x-action cmd)))
+
+(defun counsel-extra-M-X-unwind-fn ()
+  "Set value of the variable `ivy-text' to `counsel-extra-M-x-initial-input'."
+  (setq counsel-extra-M-x-initial-input ivy-text))
+
+;;;###autoload
+(defun counsel-extra-M-x ()
+  "Exta version of `execute-extended-command'."
+  (interactive)
+  (setq this-command last-command)
+  (setq real-this-command real-last-command)
+  (setq counsel-extra-M-X-externs
+        (counsel--M-x-externs))
+  (ivy-read (counsel--M-x-prompt) counsel-extra-M-X-externs
+            :predicate (if counsel-extra-M-X-externs
+                           #'counsel--M-x-externs-predicate
+                         (counsel--M-x-make-predicate))
+            :require-match t
+            :initial-input counsel-extra-M-x-initial-input
+            :history 'counsel-M-x-history
+            :preselect (or counsel-extra-M-X-last-command
+                           (ivy-thing-at-point))
+            :unwind #'counsel-extra-M-X-unwind-fn
+            :keymap counsel-extra-M-x-keymap
+            :action #'counsel-extra-M-X-action
+            :caller 'counsel-extra-M-x))
+
+(ivy-set-actions 'counsel-extra-M-x
+                 '(("j" counsel--find-symbol "Jump to defintion")
+                   ("d" counsel-extra-M-X-find-symbol-in-other-window
+                    "Jump to symbol other window")
+                   ("l" counsel-info-lookup-symbol "Lookup in the info docs")))
+
+(ivy-configure 'counsel-extra-M-x
+  :display-transformer-fn #'counsel-extra-annotate-transform-function-name)
+
 (provide 'counsel-extra)
 ;;; counsel-extra.el ends here

@@ -106,9 +106,9 @@ If CONTENT is not a string, instead of MODE-FN emacs-lisp-mode will be used."
   "Display CONTENT in popup window.
 SETUP-FNS can includes keymaps, syntax tables and functions."
   (let ((buffer (get-buffer-create "*counsel-extra-pp-insepct*"))
-        (keymaps (seq-filter 'keymapp setup-fns))
-        (stx-table (seq-find 'syntax-table-p setup-fns))
-        (mode-fn (seq-find 'functionp setup-fns)))
+        (keymaps (seq-filter #'keymapp setup-fns))
+        (stx-table (seq-find #'syntax-table-p setup-fns))
+        (mode-fn (seq-find #'functionp setup-fns)))
     (with-current-buffer buffer
       (with-current-buffer-window
           buffer
@@ -122,7 +122,7 @@ SETUP-FNS can includes keymaps, syntax tables and functions."
                 (progn  (save-excursion
                           (insert content))
                         (add-hook 'kill-buffer-hook
-                                  'counsel-extra-pp-minibuffer-select-window
+                                  #'counsel-extra-pp-minibuffer-select-window
                                   nil t)
                         (visual-line-mode 1)
                         (when mode-fn
@@ -169,7 +169,7 @@ MODE-FN is a function."
                           counsel-extra-window-last-key
                           (key-description counsel-extra-window-last-key))))
           (if (member key-descr '("C-o" "C-c C-o" "C-c o" "M-o"))
-              (run-at-time '0.5 nil 'counsel-extra-pp-inspect content
+              (run-at-time 0.5 nil #'counsel-extra-pp-inspect content
                            inspect-keymap
                            mode-fn)
             (when-let ((wind (active-minibuffer-window)))
@@ -199,7 +199,7 @@ MODE-FN is a function."
         (content (if (or
                       mode-fn
                       (not (stringp content)))
-                     (apply 'counsel-extra-pp-fontify
+                     (apply #'counsel-extra-pp-fontify
                             (list content mode-fn))
                    content)))
     (with-current-buffer buffer
@@ -344,7 +344,7 @@ Default value of SEPARATOR is space."
                            item (length current-word)))
                   (list (or separator "\s") item)))
             (list item)))
-    (apply 'insert parts)))
+    (apply #'insert parts)))
 
 (defun counsel-extra-expand-file-when-exists (name &optional directory)
   "Expand filename NAME to absolute if it exits.
@@ -352,7 +352,7 @@ Default value of SEPARATOR is space."
 Second arg DIRECTORY is directory to start with if FILENAME is relative.
 If DIRECTORY is nil or missing, the current buffer's value of
 `default-directory'is used."
-  (when-let ((file (unless (null name)
+  (when-let ((file (when name
                      (if directory
                          (expand-file-name name directory)
                        (expand-file-name name)))))
@@ -414,7 +414,7 @@ If DIRECTORY is nil or missing, the current buffer's value of
   "Exit minibuffer with `ivy--switch-buffer-other-window-action'."
   (interactive)
   (ivy-exit-with-action
-   'ivy--switch-buffer-other-window-action))
+   #'ivy--switch-buffer-other-window-action))
 
 ;;;###autoload
 (defun counsel-extra-ivy-insert ()
@@ -440,8 +440,8 @@ If DIRECTORY is nil or missing, the current buffer's value of
   "Mark or unmark current ivy candidate and go to the next match."
   (interactive)
   (if (and ivy-marked-candidates (ivy--marked-p))
-      (funcall 'ivy--unmark (ivy-state-current ivy-last))
-    (funcall 'ivy--mark (ivy-state-current ivy-last)))
+      (funcall #'ivy--unmark (ivy-state-current ivy-last))
+    (funcall #'ivy--mark (ivy-state-current ivy-last)))
   (ivy-next-line))
 
 ;;;###autoload
@@ -500,7 +500,7 @@ If DIRECTORY is nil or missing, the current buffer's value of
                        (counsel-extra-file-parent filename))))
     (when (file-directory-p parent)
       (ivy-quit-and-run
-        (funcall 'dired parent)))))
+        (funcall #'dired parent)))))
 
 (defun counsel-extra-find-symbol (x)
   "Find symbol definition that corresponds to string X."
@@ -770,7 +770,7 @@ An extra action allows to delete the selected process."
                  'describe-command)
                (intern-soft cmd))
     (setq counsel-extra-M-X-last-command ivy--index)
-    (funcall 'counsel-M-x-action cmd)))
+    (funcall #'counsel-M-x-action cmd)))
 
 (defun counsel-extra-M-X-unwind-fn ()
   "Set value of the variable `ivy-text' to `counsel-extra-M-x-initial-input'."

@@ -745,6 +745,22 @@ NAME should be a string."
     (define-key map (kbd "C-c C-l") #'counsel--info-lookup-symbol)
     map))
 
+;;;###autoload
+(defun counsel-extra-list-processes ()
+  "Offer completion for `process-list'.
+The default action is to switch to the process buffer.
+An extra action allows to delete the selected process."
+  (interactive)
+  (with-temp-buffer
+    (list-processes--refresh))
+  (ivy-read "Process: " (mapcar #'process-name (process-list))
+            :require-match t
+            :action
+            '(2
+              ("o" counsel-list-processes-action-delete "kill")
+              ("s" counsel-list-processes-action-switch "switch"))
+            :caller 'counsel-extra-list-processes))
+
 (defun counsel-extra-M-X-action (cmd)
   "If minibuffer window active describe CMD, else execute CMD."
   (if

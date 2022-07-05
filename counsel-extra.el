@@ -6,7 +6,7 @@
 ;; URL: https://github.com/KarimAziev/counsel-extra
 ;; Keywords: lisp, convenience
 ;; Version: 0.1.1
-;; Package-Requires: ((emacs "27.1"))
+;; Package-Requires: ((emacs "27.1") (ivy "0.13.4") (counsel "0.13.4"))
 
 ;; This file is NOT part of GNU Emacs.
 

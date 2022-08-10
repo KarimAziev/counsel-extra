@@ -22,6 +22,7 @@
 ;;
 ;; You should have received a copy of the GNU General Public License
 ;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
 ;;; Commentary:
 
 ;; This file configures operations with extra
@@ -79,11 +80,23 @@
 (require 'counsel)
 
 (declare-function bookmark-location "bookmark")
+
+(defvar counsel-extra-preview-meta nil)
+(defvar counsel-extra-preview-momentary-buffer-name "*counsel-extra-preview-*")
+
+(defvar counsel-extra-preview-window-last-key nil)
+
+(defvar counsel-extra-preview-switch-keymap
+  (let ((map (make-sparse-keymap)))
+    (define-key map (kbd "C-c C-o") 'counsel-extra-preview-open-inspector)
+    map)
+  "Keymap with commands to execute just before exiting.")
+
 (declare-function bookmark-all-names "bookmark")
 
-(defvar counsel-extra-window-last-key nil)
+(defvar counsel-extra-preview-content nil)
 
-(defun counsel-extra-pp-fontify (content &optional mode-fn &rest args)
+(defun counsel-extra-preview-fontify (content &optional mode-fn &rest args)
   "Fontify CONTENT according to MODE-FN called with ARGS.
 If CONTENT is not a string, instead of MODE-FN emacs-lisp-mode will be used."
   (with-temp-buffer
@@ -97,142 +110,100 @@ If CONTENT is not a string, instead of MODE-FN emacs-lisp-mode will be used."
       (font-lock-ensure)
       (buffer-string))))
 
-(defun counsel-extra-pp-minibuffer-select-window ()
-  "Select minibuffer window if it is active."
-  (when-let ((wind (active-minibuffer-window)))
-    (select-window wind)))
+(defun counsel-extra-preview-setup-quit-fn ()
+	"Setup the buffer `counsel-extra-preview-momentary-buffer-name'.
 
-(defun counsel-extra-pp-inspect (content &rest setup-fns)
-  "Display CONTENT in popup window.
-SETUP-FNS can includes keymaps, syntax tables and functions."
-  (let ((buffer (get-buffer-create "*counsel-extra-pp-insepct*"))
-        (keymaps (seq-filter #'keymapp setup-fns))
-        (stx-table (seq-find #'syntax-table-p setup-fns))
-        (mode-fn (seq-find #'functionp setup-fns)))
-    (with-current-buffer buffer
-      (with-current-buffer-window
-          buffer
-          (cons (or 'display-buffer-in-direction)
-                '((window-height . window-preserve-size)))
-          (lambda (window _value)
-            (with-selected-window window
-              (setq buffer-read-only t)
-              (let ((inhibit-read-only t))
-                (erase-buffer)
-                (progn  (save-excursion
-                          (insert content))
-                        (add-hook 'kill-buffer-hook
-                                  #'counsel-extra-pp-minibuffer-select-window
-                                  nil t)
-                        (visual-line-mode 1)
-                        (when mode-fn
-                          (funcall mode-fn))
-                        (use-local-map
-                         (let ((map (make-sparse-keymap)))
-                           (define-key map (kbd "q") 'kill-this-buffer)
-                           (define-key map (kbd "C-x 0") 'kill-this-buffer)
-                           (add-hook
-                            'read-only-mode-hook
-                            (lambda ()
-                              (if buffer-read-only
-                                  (define-key map (kbd "q")
-                                              'kill-this-buffer)
-                                (define-key map (kbd "q")
-                                            'self-insert-command)))
-                            t)
-                           (when keymaps
-                             (setq map (make-composed-keymap
-                                        keymaps
-                                        map)))
-                           (set-keymap-parent map (current-local-map))
-                           map))))))
-        (insert content))
-      (when stx-table
-        (set-syntax-table stx-table))
-      (setq header-line-format "*inspect*")
-      (unless (active-minibuffer-window)
-        (select-window (get-buffer-window buffer))))))
-
-(defun counsel-extra-pp-setup-fn (&optional content inspect-keymap mode-fn)
-	"Setup popup window and run `counsel-extra-pp-inspect'.
-Optional argument CONTENT is string.
-INSPECT-KEYMAP is keymap.
-MODE-FN is a function."
+Display remains until next event is input. If the input is a key binding
+ of a command from `counsel-extra-preview-switch-keymap', execute it."
   (lambda (window _value)
     (with-selected-window window
-      (visual-line-mode 1)
-      (unwind-protect
-          (setq counsel-extra-window-last-key
-                (read-key-sequence ""))
-        (quit-restore-window window 'kill)
-        (let ((key-descr (and
-                          counsel-extra-window-last-key
-                          (key-description counsel-extra-window-last-key))))
-          (if (member key-descr '("C-o" "C-c C-o" "C-c o" "M-o"))
-              (run-at-time 0.5 nil #'counsel-extra-pp-inspect content
-                           inspect-keymap
-                           mode-fn)
-            (when-let ((wind (active-minibuffer-window)))
-              (with-selected-window wind
-                (when-let ((command
-                            (prog1
-                                (key-binding
-                                 counsel-extra-window-last-key)
-                              (setq counsel-extra-window-last-key nil))))
-                  (if (and (commandp command)
-                           (equal 0
-                                  (car (func-arity command))))
-                      (funcall command)
-                    (and key-descr (execute-kbd-macro
-                                    key-descr)))))))
-          (setq counsel-extra-window-last-key nil))))))
+      (setq header-line-format
+            (substitute-command-keys "\\<counsel-extra-preview-switch-keymap>\
+Use `\\[counsel-extra-preview-open-inspector]' to open popup"))
+      (setq buffer-read-only t)
+      (let ((inhibit-read-only t))
+        (counsel-extra-preview-mode)
+        (when counsel-extra-preview-content
+          (erase-buffer)
+          (insert counsel-extra-preview-content))
+        (unwind-protect
+            (setq counsel-extra-preview-window-last-key
+                  (read-key-sequence ""))
+          (quit-restore-window window 'kill)
+          (if (lookup-key counsel-extra-preview-switch-keymap
+                          counsel-extra-preview-window-last-key)
+              (run-at-time '0.5 nil 'counsel-extra-preview-open-inspector)
+            (setq unread-command-events
+                  (append (this-single-command-raw-keys)
+                          unread-command-events)))
+          (setq counsel-extra-preview-window-last-key nil))))))
 
-(defun counsel-extra-pp (content &optional
-                                 mode-fn
-                                 inspect-keymap
-                                 display-buff-fn)
-  "Display CONTENT in popup window.
-Optional argument CONTENT is string.
-INSPECT-KEYMAP is keymap.
-MODE-FN is a function."
-  (let ((buffer (get-buffer-create "*counsel-pp*"))
-        (content (if (or
-                      mode-fn
-                      (not (stringp content)))
-                     (apply #'counsel-extra-pp-fontify
-                            (list content mode-fn))
-                   content)))
+(define-minor-mode counsel-extra-preview-mode
+  "Toggle momentary pop mode."
+  :lighter " momentary"
+  :keymap counsel-extra-preview-switch-keymap
+  :global nil)
+
+(defun counsel-extra-preview (content &rest setup-args)
+  "Momentarily display CONTENT in popup window.
+Display remains until next event is input.
+
+Persist popup if input is a key binding of a command
+ `counsel-extra-preview-open-inspector'in `counsel-extra-preview-switch-keymap'.
+
+SETUP-ARGS can includes keymaps, syntax table, filename and function.
+See a function `counsel-extra-preview-open-inspector'."
+  (let ((buffer (get-buffer-create
+                 counsel-extra-preview-momentary-buffer-name))
+        (mode-fn (seq-find #'functionp setup-args)))
+    (setq counsel-extra-preview-content (if (or
+                                             mode-fn
+                                             (not (stringp content)))
+                                            (apply #'counsel-extra-preview-fontify
+                                                   (list content mode-fn))
+                                          content))
+    (setq counsel-extra-preview-meta setup-args)
     (with-current-buffer buffer
       (with-current-buffer-window
           buffer
-          (cons (or display-buff-fn 'display-buffer-at-bottom)
-                '((window-height . fit-window-to-buffer)))
-          (counsel-extra-pp-setup-fn content inspect-keymap mode-fn)
-        (insert content)))))
+          (cons 'display-buffer-in-direction
+                '((window-height . window-preserve-size)))
+          (counsel-extra-preview-setup-quit-fn)
+        (counsel-extra-preview-mode)
+        (insert counsel-extra-preview-content)))))
 
-(defun counsel-extra-pp-file (file)
-  "Preview FILE."
+;;;###autoload
+(defun counsel-extra-preview-file (file)
+  "Momentarily display content of the FILE in popup window.
+
+Display remains until next event is input.
+
+To persist popup use \\<counsel-extra-preview-switch-keymap>\
+ `\\[counsel-extra-preview-open-inspector]'."
+  (interactive "f")
   (when-let ((filename (and
                         file
                         (file-readable-p file)
                         (file-exists-p file)
+                        (not (file-directory-p file))
                         file))
-             (buffer (get-buffer-create "*counsel-pp*")))
-    (let* ((content))
-      (with-temp-buffer
-        (let ((buffer-file-name file))
-          (set-auto-mode)
-          (insert-file-contents filename)
-          (font-lock-ensure)
-          (setq content (buffer-string))))
-      (with-current-buffer buffer
-        (with-current-buffer-window
-            buffer
-            (cons 'display-buffer-same-window
-                  '((window-height . fit-window-to-buffer)))
-            (counsel-extra-pp-setup-fn content)
-          (insert content)
-          (setq header-line-format filename))))))
+             (buffer (get-buffer-create
+                      counsel-extra-preview-momentary-buffer-name)))
+    (setq counsel-extra-preview-meta `(,file))
+    (setq counsel-extra-preview-content nil)
+    (with-current-buffer buffer
+      (with-current-buffer-window
+          buffer
+          (cons 'display-buffer-in-side-window
+                '((window-height . fit-window-to-buffer)))
+          (counsel-extra-preview-setup-quit-fn)
+        (insert-file-contents filename)
+        (let ((buffer-file-name filename))
+          (delay-mode-hooks (set-auto-mode)
+                            (font-lock-ensure))
+          (push major-mode counsel-extra-preview-meta))
+        (setq header-line-format
+              (abbreviate-file-name filename))))))
 
 (defun counsel-extra-read-file-display-transformer (str)
   "Transform filename STR when reading files."
@@ -400,7 +371,7 @@ If DIRECTORY is nil or missing, the current buffer's value of
   "Print properties of current ivy choice."
   (interactive)
   (let ((curr (ivy-state-current ivy-last)))
-    (counsel-extra-pp (text-properties-at 0 curr))))
+    (counsel-extra-preview (cons curr (text-properties-at 0 curr)))))
 
 ;;;###autoload
 (defun counsel-extra-ivy-browse-url ()
@@ -464,7 +435,7 @@ If DIRECTORY is nil or missing, the current buffer's value of
                               "webm" "3gp" "mp4" "MOV"))))
           (ivy-call)
         (with-selected-window (ivy--get-window ivy-last)
-          (counsel-extra-pp-file
+          (counsel-extra-preview-file
            (expand-file-name curr ivy--directory)))))))
 
 ;;;###autoload
@@ -589,7 +560,7 @@ If DIRECTORY is nil or missing, the current buffer's value of
 
 (defvar counsel-extra-bookmark-map
   (let ((map (make-sparse-keymap)))
-    (define-key map (kbd "C-c o") 'counsel-extra-bookmark-in-other-window)
+    (define-key map (kbd "C-c C-o") 'counsel-extra-bookmark-in-other-window)
     map)
   "Keymap for `counsel-bookmark'.")
 
@@ -635,7 +606,7 @@ If DIRECTORY is nil or missing, the current buffer's value of
   (ivy-add-actions
    t
    '(("i" counsel-extra-insert "insert")
-     ("p" counsel-extra-pp "print")
+     ("p" counsel-extra-preview "print")
      ("g" counsel-extra-ivy-browse-url-action "google it"))))
 
 ;;;###autoload

@@ -159,8 +159,9 @@ See a function `counsel-extra-preview-open-inspector'."
     (setq counsel-extra-preview-content (if (or
                                              mode-fn
                                              (not (stringp content)))
-                                            (apply #'counsel-extra-preview-fontify
-                                                   (list content mode-fn))
+                                            (apply
+                                             #'counsel-extra-preview-fontify
+                                             (list content mode-fn))
                                           content))
     (setq counsel-extra-preview-meta setup-args)
     (with-current-buffer buffer
@@ -704,15 +705,13 @@ NAME should be a string."
 
 ;;;###autoload
 (defun counsel-extra-M-X-find-symbol-in-other-window-cmd ()
-  "Quit the minibuffer and call `counsel-extra-M-X-find-symbol-in-other-window'."
+  "Quit the minibuffer and find symbol in other window."
   (interactive)
   (ivy-exit-with-action #'counsel-extra-M-X-find-symbol-in-other-window))
 
 (defvar counsel-extra-M-x-keymap
   (let ((map (make-sparse-keymap)))
     (define-key map (kbd "C-c C-j") #'counsel-find-symbol)
-    (define-key map (kbd "C-c o")
-                #'counsel-extra-M-X-find-symbol-in-other-window-cmd)
     (define-key map (kbd "C-c C-l") #'counsel--info-lookup-symbol)
     map))
 

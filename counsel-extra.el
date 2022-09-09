@@ -715,6 +715,19 @@ NAME should be a string."
     (define-key map (kbd "C-c C-l") #'counsel--info-lookup-symbol)
     map))
 
+(defun counsel-extra-kill-process ()
+  "Delete the selected process."
+  (interactive)
+  (counsel-list-processes-action-delete (ivy-state-current ivy-last))
+  (with-temp-buffer
+    (list-processes--refresh))
+  (ivy--kill-current-candidate))
+
+(defvar counsel-extra-process-map
+  (let ((map (make-sparse-keymap)))
+    (define-key map (kbd "C-c C-k") #'counsel-extra-kill-process)
+    map))
+
 ;;;###autoload
 (defun counsel-extra-list-processes ()
   "Offer completion for `process-list'.
@@ -725,6 +738,7 @@ An extra action allows to delete the selected process."
     (list-processes--refresh))
   (ivy-read "Process: " (mapcar #'process-name (process-list))
             :require-match t
+            :keymap counsel-extra-process-map
             :action
             '(2
               ("o" counsel-list-processes-action-delete "kill")

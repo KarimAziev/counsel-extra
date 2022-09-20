@@ -791,5 +791,33 @@ An extra action allows to delete the selected process."
 (ivy-configure 'counsel-extra-M-x
   :display-transformer-fn #'counsel-extra-annotate-transform-function-name)
 
+(defun counsel-extra-imenu-action-other-window (item)
+  "Jump to imenu ITEM in other window."
+  (let ((buff (current-buffer)))
+    (select-window (or
+                    (window-right (selected-window))
+                    (window-left (selected-window))
+                    (split-window-right)))
+    (pop-to-buffer-same-window buff t)
+    (counsel-imenu-action item)))
+
+(defun counsel-extra-imenu-jump-to-item-in-other-window ()
+  "Jump to imenu item in other window."
+  (interactive)
+  (ivy-exit-with-action #'counsel-extra-imenu-action-other-window))
+
+(defun counsel-extra-imenu-default (item)
+  "Jump to imenu ITEM either in its original window or other window.
+If the completion was successfully selected jump it original window."
+  (if ivy-exit
+      (counsel-imenu-action item)
+    (with-ivy-window
+      (counsel-extra-imenu-action-other-window item))))
+
+(ivy-set-actions 'counsel-imenu
+                 `(("o" counsel-extra-imenu-default "jump to item")
+                   ("j" counsel-extra-imenu-action-other-window
+                    "jump in other window")))
+
 (provide 'counsel-extra)
 ;;; counsel-extra.el ends here

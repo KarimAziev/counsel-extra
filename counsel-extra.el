@@ -715,6 +715,7 @@ NAME should be a string."
     (define-key map (kbd "C-c C-l") #'counsel--info-lookup-symbol)
     map))
 
+;;;###autoload
 (defun counsel-extra-kill-process ()
   "Delete the selected process."
   (interactive)
@@ -801,6 +802,24 @@ An extra action allows to delete the selected process."
     (pop-to-buffer-same-window buff t)
     (counsel-imenu-action item)))
 
+(defun counsel-extra-imenu-insert (item)
+  "Insert imenu ITEM."
+  (counsel-extra-insert
+   (car
+    (seq-drop-while
+     (apply-partially #'string-match-p ":$")
+     (split-string (if (consp item)
+                       (car item)
+                     item)
+                   nil t)))))
+
+;;;###autoload
+(defun counsel-extra-imenu-insert-cmd ()
+  "Quit the minibuffer and insert imenu item."
+  (interactive)
+  (ivy-exit-with-action 'counsel-extra-imenu-insert))
+
+;;;###autoload
 (defun counsel-extra-imenu-jump-to-item-in-other-window ()
   "Jump to imenu item in other window."
   (interactive)
@@ -817,7 +836,8 @@ If the completion was successfully selected jump it original window."
 (ivy-set-actions 'counsel-imenu
                  `(("o" counsel-extra-imenu-default "jump to item")
                    ("j" counsel-extra-imenu-action-other-window
-                    "jump in other window")))
+                    "jump in other window")
+                   ("i" counsel-extra-imenu-insert "insert")))
 
 (provide 'counsel-extra)
 ;;; counsel-extra.el ends here

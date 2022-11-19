@@ -307,6 +307,9 @@ If word at point is prefix of ITEM, complete it, else insert ITEM.
 Optional argument SEPARATOR is a string to insert just after ITEM.
 Default value of SEPARATOR is space."
   (let ((parts))
+    (setq item (if (consp item)
+                   (car item)
+                 item))
     (setq parts
           (if-let ((current-word (counsel-extra-get-word
                                   "-*_~$A-Za-z0-9:#\\+")))
@@ -405,7 +408,8 @@ If DIRECTORY is nil or missing, the current buffer's value of
                              "\n" "")
                          marked-str)))
         (ivy-quit-and-run (counsel-extra-insert str)))
-    (ivy-exit-with-action #'counsel-extra-insert)))
+    (ivy-quit-and-run
+      (counsel-extra-insert (ivy-state-current ivy-last)))))
 
 ;;;###autoload
 (defun counsel-extra-ivy-mark (&optional _c)
@@ -800,7 +804,7 @@ An extra action allows to delete the selected process."
                     (window-left (selected-window))
                     (split-window-right)))
     (pop-to-buffer-same-window buff t)
-    (counsel-imenu-action item)))
+    (funcall (counsel-extra-get-imenu-action) item)))
 
 (defun counsel-extra-imenu-insert (item)
   "Insert imenu ITEM."
@@ -808,10 +812,11 @@ An extra action allows to delete the selected process."
    (car
     (seq-drop-while
      (apply-partially #'string-match-p ":$")
-     (split-string (if (consp item)
-                       (car item)
-                     item)
-                   nil t)))))
+     (seq-filter #'stringp
+                 (split-string (if (consp item)
+                                   (car item)
+                                 item)
+                               nil t))))))
 
 ;;;###autoload
 (defun counsel-extra-imenu-insert-cmd ()
@@ -825,15 +830,27 @@ An extra action allows to delete the selected process."
   (interactive)
   (ivy-exit-with-action #'counsel-extra-imenu-action-other-window))
 
+(defun counsel-extra-get-imenu-action ()
+  "Return corresponding aciton for `counsel-imenu' or `imenu'."
+  (if (eq (ivy-state-caller ivy-last) 'counsel-imenu)
+      #'counsel-imenu-action
+    #'imenu))
+
 (defun counsel-extra-imenu-default (item)
   "Jump to imenu ITEM either in its original window or other window.
 If the completion was successfully selected jump it original window."
   (if ivy-exit
-      (counsel-imenu-action item)
+      (funcall (counsel-extra-get-imenu-action) item)
     (with-ivy-window
       (counsel-extra-imenu-action-other-window item))))
 
 (ivy-set-actions 'counsel-imenu
+                 `(("o" counsel-extra-imenu-default "jump to item")
+                   ("j" counsel-extra-imenu-action-other-window
+                    "jump in other window")
+                   ("i" counsel-extra-imenu-insert "insert")))
+
+(ivy-set-actions 'imenu
                  `(("o" counsel-extra-imenu-default "jump to item")
                    ("j" counsel-extra-imenu-action-other-window
                     "jump in other window")

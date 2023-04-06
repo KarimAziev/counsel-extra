@@ -200,8 +200,8 @@ To persist popup use \\<counsel-extra-preview-switch-keymap>\
           (counsel-extra-preview-setup-quit-fn)
         (insert-file-contents filename)
         (let ((buffer-file-name filename))
-          (delay-mode-hooks (set-auto-mode)
-                            (font-lock-ensure))
+          (delay-mode-hooks (ignore-errors (set-auto-mode)
+                                           (font-lock-ensure)))
           (push major-mode counsel-extra-preview-meta))
         (setq header-line-format
               (abbreviate-file-name filename))))))

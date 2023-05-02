@@ -139,8 +139,8 @@ Use `\\[counsel-extra-preview-open-inspector]' to open popup"))
           (setq counsel-extra-preview-window-last-key nil))))))
 
 (define-minor-mode counsel-extra-preview-mode
-  "Toggle momentary pop mode."
-  :lighter " momentary"
+  "Minor mode for preview buffers."
+  :lighter "Cns+ "
   :keymap counsel-extra-preview-switch-keymap
   :global nil)
 
@@ -210,8 +210,8 @@ To persist popup use \\<counsel-extra-preview-switch-keymap>\
   "Transform filename STR when reading files."
   (when-let ((filename (expand-file-name str (ivy-state-directory ivy-last))))
     (let ((parts (delete nil `(,str ,(file-symlink-p filename))))
-          (face (cond
-                 ((not (file-readable-p filename)) 'ivy-match-required-face)
+          (face
+           (cond ((not (file-readable-p filename)) 'ivy-match-required-face)
                  ((file-accessible-directory-p filename) 'ivy-subdir)
                  ((and
                    (file-regular-p filename)

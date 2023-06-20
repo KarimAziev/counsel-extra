@@ -111,7 +111,7 @@ If CONTENT is not a string, instead of MODE-FN emacs-lisp-mode will be used."
       (buffer-string))))
 
 (defun counsel-extra-preview-setup-quit-fn ()
-	"Setup the buffer `counsel-extra-preview-momentary-buffer-name'.
+  "Setup the buffer `counsel-extra-preview-momentary-buffer-name'.
 
 Display remains until next event is input. If the input is a key binding
  of a command from `counsel-extra-preview-switch-keymap', execute it."
@@ -257,7 +257,7 @@ To persist popup use \\<counsel-extra-preview-switch-keymap>\
     (browse-url url)))
 
 (defun counsel-extra-ivy-trim-mark-prefix (item)
-	"Trim `ivy-mark-prefix' prefix from ITEM."
+  "Trim `ivy-mark-prefix' prefix from ITEM."
   (if (and
        item
        ivy-mark-prefix
@@ -422,7 +422,7 @@ If DIRECTORY is nil or missing, the current buffer's value of
 
 ;;;###autoload
 (defun counsel-extra-expand-dir-maybe ()
-	"Counsel expand dir maybe."
+  "Counsel expand dir maybe."
   (interactive)
   (let ((curr (ivy-state-current ivy-last))
         (dir))
@@ -445,7 +445,7 @@ If DIRECTORY is nil or missing, the current buffer's value of
 
 ;;;###autoload
 (defun counsel-extra-expand-dir-done ()
-	"Counsel expand dir done."
+  "Counsel expand dir done."
   (interactive)
   (let
       ((curr
@@ -545,7 +545,7 @@ If DIRECTORY is nil or missing, the current buffer's value of
 
 ;;;###autoload
 (defun counsel-extra-bookmark-in-other-window ()
-	"Open bookmark in other window."
+  "Open bookmark in other window."
   (interactive)
   (require 'bookmark)
   (let ((curr (ivy-state-current ivy-last)))

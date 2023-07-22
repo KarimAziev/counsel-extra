@@ -69,23 +69,21 @@ Add the downloaded directory to the load path:
 ** Extended commands
 
 These commands are expected to be bound in the ~counsel-mode-map~.
-#+begin_export html
 
+#+begin_export html
 <details>
   <summary>Show example</summary>
 
 ```elisp
-#+begin_src emacs-lisp
 (require 'counsel)
 (require 'counsel-extra)
 
 (define-key counsel-mode-map (kbd "C-x P") 'counsel-extra-list-processes)
 (define-key counsel-mode-map (vector 'remap 'execute-extended-command) 'counsel-extra-M-x)
 (define-key counsel-mode-map (kbd "C-x c c") 'counsel-extra-colors-emacs)
-#+end_src
-
 ```
 </details>
+
 #+end_export
 
 - =counsel-extra-M-x= - Extra version of =execute-extended-command=.

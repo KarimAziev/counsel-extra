@@ -78,9 +78,10 @@ These commands are expected to be bound in the ~counsel-mode-map~.
 #+begin_src emacs-lisp
 (require 'counsel)
 (require 'counsel-extra)
+
 (define-key counsel-mode-map (kbd "C-x P") 'counsel-extra-list-processes)
 (define-key counsel-mode-map (vector 'remap 'execute-extended-command) 'counsel-extra-M-x)
-
+(define-key counsel-mode-map (kbd "C-x c c") 'counsel-extra-colors-emacs)
 #+end_src
 
 ```
@@ -89,6 +90,7 @@ These commands are expected to be bound in the ~counsel-mode-map~.
 
 - =counsel-extra-M-x= - Extra version of =execute-extended-command=.
 - =counsel-extra-list-processes= - Offer completion for =process-list=. The default action is to switch to the process buffer. An extra action allows to delete the selected process.
+- =counsel-extra-colors-emacs= - Show a list of all supported colors for a particular frame. Unlike `counsel-colors-emacs' it is allows to define extra commands in it's keymap - `counsel-extra-emacs-colors-map'.
 
 
 ** File commands
@@ -180,6 +182,7 @@ These commands are expected to be bound in the ~ivy-minibuffer-map~.
 ```
 </details>
 #+end_export
+
 
 * Customization
 

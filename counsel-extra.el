@@ -6,7 +6,8 @@
 ;; URL: https://github.com/KarimAziev/counsel-extra
 ;; Keywords: lisp, convenience
 ;; Version: 0.1.1.50-git
-;; Package-Requires: ((emacs "27.1") (ivy "0.13.4") (counsel "0.13.4"))
+;; Package-Requires: ((emacs "27.1") (ivy "0.14.0") (counsel "0.14.0"))
+;; SPDX-License-Identifier: GPL-3.0-or-later
 
 ;; This file is NOT part of GNU Emacs.
 
@@ -27,51 +28,62 @@
 
 ;; Extends the functionality of Ivy and Counsel packages by providing extra utilities and commands.
 
-;; Commands
+;; Main Commands
 
-;; M-x `counsel-extra-bookmark'
-;;      Forward to `bookmark-jump' or `bookmark-set' if bookmark doesn't exist.
+;; `counsel-extra-M-x' Extra version of `execute-extended-command'.
 
-;; M-x `counsel-extra-bookmark-in-other-window'
-;;      Open bookmark in other window.
+;; `counsel-extra-list-processes' Offer completion for `process-list'. The
+;; default action is to switch to the process buffer. An extra action allows to
+;; delete the selected process.
 
-;; M-x `counsel-extra-find-symbol-in-other-window' (&optional it)
-;;      Find symbol definition that corresponds to string IT in other window.
 
-;; M-x `counsel-extra-call-in-other-window' (func &rest args)
-;;      Switch to other window and call FUNC with ARGS.
+;;  `counsel-extra-imenu-jump-to-item-in-other-window' Jump to imenu item in other window.
+;;  `counsel-extra-imenu-insert-cmd'                   Quit the minibuffer and insert imenu item.
 
-;; M-x `counsel-extra-open-file-other-window'
-;;      Quit the minibuffer and call `find-file-other-window' action.
+;;  `counsel-extra-configure-find-file'           Configure `counsel-find-file' and `read-file-name-internal'.
+;;  `counsel-extra-add-extra-actions'             Add extra actions to all Ivy callers.
+;;  `counsel-extra-bookmark'                      Forward to `bookmark-jump' or `bookmark-set' if bookmark doesn't exist.
+;;  `counsel-extra-bookmark-in-other-window'      Open bookmark in other window.
+;;  `counsel-extra-find-symbol-in-other-window'   Find symbol definition that corresponds in other window
 
-;; M-x `counsel-extra-move-file'
-;;      Quit the minibuffer and call `counsel-find-file-move' action.
+;; File commands
 
-;; M-x `counsel-extra-delete-file'
-;;      Quit the minibuffer and call `counsel-find-file-delete' action.
+;;  `counsel-extra-open-file-other-window' Quit the minibuffer and call `find-file-other-window' action.
+;;  `counsel-extra-move-file'              Quit the minibuffer and call `counsel-find-file-move' action.
+;;  `counsel-extra-delete-file'            Quit the minibuffer and call `counsel-find-file-delete' action.
+;;  `counsel-extra-copy-file'              Quit the minibuffer and call `counsel-find-file-copy' action.
+;;  `counsel-extra-dired'                  Open file in Dired.
+;;  `counsel-extra-expand-dir-done'        Visit or preview file.
+;;   If it is a valid directory, visit it and stay in minibuffer, otherwise execute default ivy action and exit minibuffer.
+;;  `counsel-extra-expand-dir-maybe'       Visit or preview file and stay in minibuffer.
+;;   If it is not a valid directory, preview the file
 
-;; M-x `counsel-extra-copy-file'
-;;      Quit the minibuffer and call `counsel-find-file-copy' action.
+;; Misc commands
 
-;; M-x `counsel-extra-dired'
-;;      Open file in Dired.
+;;  `counsel-extra-ivy-mark' Mark or unmark current ivy candidate and go to the
+;;  next match.
+;;  `counsel-extra-ivy-insert' Return a string of marked candidates and insert
+;;  it into the buffer.
+;;  `counsel-extra-switch-to-buffer-other-window' Exit minibuffer with
+;;  `ivy--switch-buffer-other-window-action'.
+;;  `counsel-extra-ivy-browse-url' If current ivy choice is url, open it in
+;;  browser, else search in google.
+;;  `counsel-extra-ivy-copy' - Copy current ivy candidate without text
+;;  properties
 
-;; M-x `counsel-extra-expand-dir-done'
-;;      Counsel expand dir done.
+;; Color commands
 
-;; M-x `counsel-extra-expand-dir-maybe'
-;;      Counsel expand dir maybe.
+;; `counsel-extra-colors-emacs' Show a list of all supported colors for a
+;;  particular frame. You can insert or kill the name or hexadecimal =rgb=
+;;  value of the selected color. Unlike =counsel-colors-emacs= it is allows to
+;;  define extra commands in it's keymap - .
+;;  Keymap for `counsel-extra-emacs-colors-map':
 
-;; M-x `counsel-extra-ivy-mark' (&optional _c)
-;;      Mark or unmark current ivy candidate and go to the next match.
+;; C-j       `counsel-extra-colors-flash-buffer' Temporarly change minibuffer background color
+;; C-c C-w   `counsel-extra-colors-copy-hex'     Copy hex color and exit minibuffer.
+;; C-c C-i   `counsel-extra-colors-insert-hex'   Insert hex color and exit minibuffer.
+;; C-c M-i   `counsel-extra-colors-insert-color' Insert color without exitting minibuffer.
 
-;; M-x `counsel-extra-ivy-insert'
-;;      Insert ivy marked candidates or current choice.
-
-;; M-x `counsel-extra-switch-to-buffer-other-window'
-
-;; M-x `counsel-extra-ivy-browse-url'
-;;      If current ivy choice is url, open it in browser, else search in google.
 
 ;;; Code:
 
@@ -79,6 +91,8 @@
 (require 'ivy)
 (require 'counsel)
 
+(declare-function face-remap-remove-relative "face-remap")
+(declare-function face-remap-add-relative "face-remap")
 (declare-function bookmark-location "bookmark")
 
 (defcustom counsel-extra-align-M-x-description nil
@@ -88,20 +102,9 @@ If nil, don't align, if integer align to those column."
                  (integer :tag "Column" 50))
   :group 'counsel-extra)
 
-(defvar counsel-extra-preview-meta nil)
 (defvar counsel-extra-preview-momentary-buffer-name "*counsel-extra-preview-*")
 
-(defvar counsel-extra-preview-window-last-key nil)
-
-(defvar counsel-extra-preview-switch-keymap
-  (let ((map (make-sparse-keymap)))
-    (define-key map (kbd "C-c C-o") 'counsel-extra-preview-open-inspector)
-    map)
-  "Keymap with commands to execute just before exiting.")
-
 (declare-function bookmark-all-names "bookmark")
-
-(defvar counsel-extra-preview-content nil)
 
 (defun counsel-extra-preview-fontify (content &optional mode-fn &rest args)
   "Fontify CONTENT according to MODE-FN called with ARGS.
@@ -117,39 +120,7 @@ If CONTENT is not a string, instead of MODE-FN emacs-lisp-mode will be used."
       (font-lock-ensure)
       (buffer-string))))
 
-(defun counsel-extra-preview-setup-quit-fn ()
-  "Setup the buffer `counsel-extra-preview-momentary-buffer-name'.
 
-Display remains until next event is input. If the input is a key binding
- of a command from `counsel-extra-preview-switch-keymap', execute it."
-  (lambda (window _value)
-    (with-selected-window window
-      (setq header-line-format
-            (substitute-command-keys "\\<counsel-extra-preview-switch-keymap>\
-Use `\\[counsel-extra-preview-open-inspector]' to open popup"))
-      (setq buffer-read-only t)
-      (let ((inhibit-read-only t))
-        (counsel-extra-preview-mode)
-        (when counsel-extra-preview-content
-          (erase-buffer)
-          (insert counsel-extra-preview-content))
-        (unwind-protect
-            (setq counsel-extra-preview-window-last-key
-                  (read-key-sequence ""))
-          (quit-restore-window window 'kill)
-          (if (lookup-key counsel-extra-preview-switch-keymap
-                          counsel-extra-preview-window-last-key)
-              (run-at-time '0.5 nil 'counsel-extra-preview-open-inspector)
-            (setq unread-command-events
-                  (append (this-single-command-raw-keys)
-                          unread-command-events)))
-          (setq counsel-extra-preview-window-last-key nil))))))
-
-(define-minor-mode counsel-extra-preview-mode
-  "Minor mode for preview buffers."
-  :lighter "Cns+ "
-  :keymap counsel-extra-preview-switch-keymap
-  :global nil)
 
 (defun counsel-extra-preview (content &rest setup-args)
   "Momentarily display CONTENT in popup window.
@@ -163,55 +134,55 @@ See a function `counsel-extra-preview-open-inspector'."
   (let ((buffer (get-buffer-create
                  counsel-extra-preview-momentary-buffer-name))
         (mode-fn (seq-find #'functionp setup-args)))
-    (setq counsel-extra-preview-content (if (or
-                                             mode-fn
-                                             (not (stringp content)))
-                                            (apply
-                                             #'counsel-extra-preview-fontify
-                                             (list content mode-fn))
-                                          content))
-    (setq counsel-extra-preview-meta setup-args)
     (with-current-buffer buffer
-      (with-current-buffer-window
-          buffer
-          (cons 'display-buffer-in-direction
-                '((window-height . window-preserve-size)))
-          (counsel-extra-preview-setup-quit-fn)
-        (counsel-extra-preview-mode)
-        (insert counsel-extra-preview-content)))))
-
-;;;###autoload
-(defun counsel-extra-preview-file (file)
-  "Momentarily display content of the FILE in popup window.
-
-Display remains until next event is input.
-
-To persist popup use \\<counsel-extra-preview-switch-keymap>\
- `\\[counsel-extra-preview-open-inspector]'."
-  (interactive "f")
-  (when-let ((filename (and
-                        file
-                        (file-readable-p file)
-                        (file-exists-p file)
-                        (not (file-directory-p file))
-                        file))
-             (buffer (get-buffer-create
-                      counsel-extra-preview-momentary-buffer-name)))
-    (setq counsel-extra-preview-meta `(,file))
-    (setq counsel-extra-preview-content nil)
-    (with-current-buffer buffer
-      (with-current-buffer-window
+      (with-current-buffer-window buffer
           buffer
           (cons 'display-buffer-in-side-window
                 '((window-height . fit-window-to-buffer)))
-          (counsel-extra-preview-setup-quit-fn)
-        (insert-file-contents filename)
-        (let ((buffer-file-name filename))
-          (delay-mode-hooks (ignore-errors (set-auto-mode)
-                                           (font-lock-ensure)))
-          (push major-mode counsel-extra-preview-meta))
-        (setq header-line-format
-              (abbreviate-file-name filename))))))
+        (lambda (window _value)
+          (with-selected-window window
+            (setq buffer-read-only t)
+            (let ((inhibit-read-only t))
+              (unwind-protect
+                  (read-key-sequence "")
+                (quit-restore-window window 'kill)))))
+        (insert (if (or
+                     mode-fn
+                     (not (stringp content)))
+                    (apply
+                     #'counsel-extra-preview-fontify
+                     (list content mode-fn))
+                  content))))))
+
+(defun counsel-extra--preview-file (file)
+  "Preview FILE in other window.
+This function doesn't really visit FILE to avoid unwanted side effects, such
+as running find file hooks, starting lsp or eglot servers and so on."
+  (when (and file (file-exists-p file))
+    (with-minibuffer-selected-window
+      (let ((buffer (get-buffer-create "*counsel-extra-preview-file*")))
+        (with-current-buffer buffer
+          (with-current-buffer-window buffer
+              buffer
+              (cons 'display-buffer-in-direction
+                    '((window-height . fit-window-to-buffer)))
+            (lambda (window _value)
+              (with-selected-window window
+                (setq buffer-read-only t)
+                (let ((inhibit-read-only t))
+                  (unwind-protect
+                      (read-key-sequence "")
+                    (quit-restore-window window 'kill)))))
+            (if (file-directory-p file)
+                (dired file)
+              (insert-file-contents file)
+              (let ((buffer-file-name file))
+                (ignore-errors
+                  (delay-mode-hooks (set-auto-mode)
+                                    (font-lock-ensure))))
+              (setq header-line-format
+                    (abbreviate-file-name file)))))))))
+
 
 (defun counsel-extra-read-file-display-transformer (str)
   "Transform filename STR when reading files."
@@ -370,19 +341,13 @@ If DIRECTORY is nil or missing, the current buffer's value of
 
 ;;;###autoload
 (defun counsel-extra-ivy-copy ()
-  "Copy current ivy candidate without text proerties."
+  "Copy current ivy candidate without text properties."
   (interactive)
   (let ((item (ivy-state-current ivy-last)))
     (kill-new (if (stringp item)
                   (counsel-extra-strip-text-props item)
                 (counsel-extra-strip-text-props (car item))))))
 
-;;;###autoload
-(defun counsel-extra-pp-ivy ()
-  "Print properties of current ivy choice."
-  (interactive)
-  (let ((curr (ivy-state-current ivy-last)))
-    (counsel-extra-preview (cons curr (text-properties-at 0 curr)))))
 
 ;;;###autoload
 (defun counsel-extra-ivy-browse-url ()
@@ -447,9 +412,8 @@ If it is not a valid directory, preview the file."
                             '("mp4" "mkv" "xlsx" "png" "jpg" "jpeg"
                               "webm" "3gp" "mp4" "MOV"))))
           (ivy-call)
-        (with-selected-window (ivy--get-window ivy-last)
-          (counsel-extra-preview-file
-           (expand-file-name curr ivy--directory)))))))
+        (counsel-extra--preview-file
+         (expand-file-name curr ivy--directory))))))
 
 ;;;###autoload
 (defun counsel-extra-expand-dir-done ()
@@ -574,7 +538,7 @@ execute default ivy action and exit minibuffer."
 
 (defvar counsel-extra-bookmark-map
   (let ((map (make-sparse-keymap)))
-    (define-key map (kbd "C-c C-o") 'counsel-extra-bookmark-in-other-window)
+    (define-key map (kbd "C-c C-o") #'counsel-extra-bookmark-in-other-window)
     map)
   "Keymap for `counsel-bookmark'.")
 
@@ -620,12 +584,12 @@ execute default ivy action and exit minibuffer."
   (ivy-add-actions
    t
    '(("i" counsel-extra-insert "insert")
-     ("p" counsel-extra-preview "print")
      ("g" counsel-extra-ivy-browse-url-action "google it"))))
 
 ;;;###autoload
 (defun counsel-extra-configure-find-file ()
-  "Configure `counsel-find-file' and `read-file-name-internal'."
+  "Add display transformers to `counsel-find-file' and `read-file-name-internal'.
+Also it is configures `ivy-sort-functions-alist'."
   (interactive)
   (ivy-configure 'counsel-find-file
     :occur #'counsel-find-file-occur
@@ -700,17 +664,19 @@ Argument NAME is the name of the function."
                                              sym buff)))
                               key)
                             "")
-                           (when-let ((doc (counsel-extra-annotate-transform-get-function-doc
-                                            sym)))
-                             (concat
-                              (if counsel-extra-align-M-x-description
-                                  (propertize " " 'display
-                                              `(space :align-to
-                                                      ,(or
-                                                        counsel-extra-align-M-x-description
-                                                        50)))
-                                " ")
-                              doc)))))
+                           (or
+                            (when-let ((doc (counsel-extra-annotate-transform-get-function-doc
+                                             sym)))
+                              (concat
+                               (if counsel-extra-align-M-x-description
+                                   (propertize " " 'display
+                                               `(space :align-to
+                                                       ,(or
+                                                         counsel-extra-align-M-x-description
+                                                         50)))
+                                 " ")
+                               doc))
+                            ""))))
               (cond ((eq sym major-mode)
                      (propertize result 'face 'font-lock-variable-name-face))
                     ((and
@@ -795,6 +761,8 @@ If the minibuffer window is active, describe CMD with the `helpful-command' or
   (setq real-this-command real-last-command)
   (setq counsel-extra-M-X-externs
         (counsel--M-x-externs))
+  (ivy-configure 'counsel-extra-M-x
+    :display-transformer-fn #'counsel-extra-annotate-transform-function-name)
   (ivy-read (counsel--M-x-prompt) counsel-extra-M-X-externs
             :predicate (if counsel-extra-M-X-externs
                            #'counsel--M-x-externs-predicate
@@ -814,9 +782,6 @@ If the minibuffer window is active, describe CMD with the `helpful-command' or
                    ("d" counsel-extra-M-X-find-symbol-in-other-window
                     "Jump to symbol other window")
                    ("l" counsel-info-lookup-symbol "Lookup in the info docs")))
-
-(ivy-configure 'counsel-extra-M-x
-  :display-transformer-fn #'counsel-extra-annotate-transform-function-name)
 
 (defun counsel-extra-imenu-action-other-window (item)
   "Open the selected imenu ITEM in another window.
@@ -879,6 +844,138 @@ If the completion was successfully selected jump it original window."
                    ("j" counsel-extra-imenu-action-other-window
                     "jump in other window")
                    ("i" counsel-extra-imenu-insert "insert")))
+
+
+
+(make-face 'counsel-extra-highlight-minibuffer-face)
+
+(defun counsel-extra-colors--name-to-hex (name)
+  "Return hexadecimal RGB value of color with NAME.
+
+Return nil if NAME does not designate a valid color."
+  (require 'color)
+  (let ((rgb (color-name-to-rgb name)))
+    (when rgb
+      (when (fboundp 'color-rgb-to-hex)
+        (apply #'color-rgb-to-hex rgb)))))
+
+(defvar-local counsel-extra-flash-bg-remap-cookies nil)
+
+(defun counsel-extra-flash-buffer (&optional color)
+  "Add a face remapping with background COLOR to current buffer."
+  (require 'face-remap)
+  (counsel-extra--flash-buffer-cleanup)
+  (when color
+    (set-face-attribute 'counsel-extra-highlight-minibuffer-face nil
+                        :background color)
+    (setq counsel-extra-flash-bg-remap-cookies
+          (face-remap-add-relative
+           'default
+           'counsel-extra-highlight-minibuffer-face))))
+
+(defun counsel-extra--flash-buffer-cleanup ()
+  "Remove a face remappings `counsel-extra-flash-bg-remap-cookies' in all buffers."
+  (require 'face-remap)
+  (dolist (buff (buffer-list))
+    (when (buffer-local-value 'counsel-extra-flash-bg-remap-cookies buff)
+      (with-current-buffer buff
+        (face-remap-remove-relative counsel-extra-flash-bg-remap-cookies)
+        (setq counsel-extra-flash-bg-remap-cookies nil)))))
+
+(defun counsel-extra-colors-insert-hex-action (color)
+  "Insert hex COLOR."
+  (insert (if (nth 3 (syntax-ppss (point)))
+              (get-text-property 0 'hex color)
+            (format "\"%s\"" (get-text-property 0 'hex color)))))
+
+;;;###autoload
+(defun counsel-extra-colors-insert-color ()
+  "Insert color without exitting minibuffer."
+  (interactive)
+  (let ((current
+         (or
+          (ivy-state-current
+           ivy-last)
+          ivy-text)))
+    (with-selected-window
+        (ivy--get-window ivy-last)
+      (insert current))))
+;;;###autoload
+(defun counsel-extra-colors-insert-hex ()
+  "Insert hex color and exit minibuffer."
+  (interactive)
+  (ivy-exit-with-action #'counsel-extra-colors-insert-hex-action))
+
+;;;###autoload
+(defun counsel-extra-colors-copy-hex ()
+  "Copy hex color and exit minibuffer."
+  (interactive)
+  (ivy-exit-with-action #'counsel-colors-action-kill-hex))
+
+
+
+;;;###autoload
+(defun counsel-extra-colors-flash-buffer ()
+  "Temporarly change minibuffer background color with selected color."
+  (interactive)
+  (let ((current
+         (or
+          (ivy-state-current
+           ivy-last)
+          ivy-text)))
+    (with-selected-window
+        (active-minibuffer-window)
+      (funcall #'counsel-extra-flash-buffer current))))
+
+(defvar counsel-extra-emacs-colors-map
+  (let ((map (make-sparse-keymap)))
+    (define-key map (kbd "C-j") #'counsel-extra-colors-flash-buffer)
+    (define-key map (kbd "C-c TAB") #'counsel-extra-colors-insert-hex)
+    (define-key map (kbd "C-c M-i") #'counsel-extra-colors-insert-color)
+    (define-key map (kbd "C-c C-w") #'counsel-extra-colors-copy-hex)
+    map))
+
+
+;;;###autoload
+(defun counsel-extra-colors-emacs ()
+  "Show a list of all supported colors for a particular frame.
+
+You can insert or kill the name or hexadecimal RGB value of the
+selected color.
+
+Unlike `counsel-colors-emacs' it is allows to define extra commands in
+it's keymap - `counsel-extra-emacs-colors-map'."
+  (interactive)
+  (let* ((colors
+          (delete nil
+                  (mapcar (lambda (cell)
+                            (let* ((name (car cell))
+                                   (dups (cdr cell))
+                                   (hex (counsel-colors--name-to-hex name)))
+                              (when hex
+                                (propertize name 'hex hex 'dups dups))))
+                          (list-colors-duplicates))))
+         (counsel--colors-format
+          (format "%%-%ds %%s %%s%%s"
+                  (apply #'max 0 (mapcar #'string-width colors)))))
+    (ivy-read "Emacs color: " colors
+              :require-match t
+              :history 'counsel-colors-emacs-history
+              :keymap counsel-extra-emacs-colors-map
+              :action #'counsel-extra-colors-insert-hex-action
+              :caller 'counsel-extra-colors-emacs)))
+
+(ivy-set-actions 'counsel-extra-colors-emacs
+                 '(("B" counsel-extra-colors-insert-hex-action
+                 "Insert hex color")
+                   ("j" counsel-extra-flash-buffer "Preview background color")
+                   ("i" insert "Insert")
+                   ("w" counsel-colors-action-kill-hex "Copy hex color")
+                   ("T" counsel-extra-colors-insert-hex-action
+                   "Insert hex color")))
+
+(ivy-configure 'counsel-extra-colors-emacs
+  :format-fn #'counsel--colors-emacs-format-function)
 
 (provide 'counsel-extra)
 ;;; counsel-extra.el ends here

@@ -81,6 +81,13 @@
 
 (declare-function bookmark-location "bookmark")
 
+(defcustom counsel-extra-align-M-x-description nil
+  "Whether to align command descriptions.
+If nil, don't align, if integer align to those column."
+  :type '(choice (const :tag "No align" nil)
+                 (integer :tag "Column" 50))
+  :group 'counsel-extra)
+
 (defvar counsel-extra-preview-meta nil)
 (defvar counsel-extra-preview-momentary-buffer-name "*counsel-extra-preview-*")
 

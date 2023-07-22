@@ -5,7 +5,7 @@
 ;; Author: Karim Aziiev <karim.aziiev@gmail.com>
 ;; URL: https://github.com/KarimAziev/counsel-extra
 ;; Keywords: lisp, convenience
-;; Version: 0.1.1.50-git
+;; Version: 0.2.0
 ;; Package-Requires: ((emacs "27.1") (ivy "0.14.0") (counsel "0.14.0"))
 ;; SPDX-License-Identifier: GPL-3.0-or-later
 

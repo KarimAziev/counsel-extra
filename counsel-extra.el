@@ -639,7 +639,7 @@ If DIRECTORY is nil or missing, the current buffer's value of
 (defvar counsel-extra-M-X-externs nil)
 (defvar counsel-extra-M-x-initial-input nil)
 
-;;;###autoload
+
 (defun counsel-extra-annotate-transform-get-function-key (sym buffer)
   "Return string with active key for command SYM in BUFFER.
 SYM should be a symbol."
@@ -658,7 +658,7 @@ SYM should be a symbol."
           (propertize (format "(%s)" (key-description k))
                       'face 'font-lock-variable-name-face))))))
 
-;;;###autoload
+
 (defun counsel-extra-annotate-transform-get-function-doc (sym)
   "Return a stirng with short documentation of symbol SYM or nil.
 SYM should be a symbol."
@@ -677,29 +677,37 @@ SYM should be a symbol."
                      'face
                      'font-lock-negation-char-face))))
 
-;;;###autoload
+
 (defun counsel-extra-annotate-transform-function-name (name)
   "Return NAME annotated with its active key binding and documentation.
 NAME should be a string."
   (or (ignore-errors
-        (let ((buff (if-let ((minw (minibuffer-selected-window)))
-                        (with-selected-window minw
-                          (current-buffer))
-                      (current-buffer)))
+        (let ((buff
+               (if-let ((minw (minibuffer-selected-window)))
+                   (with-selected-window minw
+                     (current-buffer))
+                 (current-buffer)))
               (sym))
           (setq sym (intern name))
           (when (symbolp sym)
             (let ((result (concat
                            name "\s"
-                           (string-join
-                            (delete
-                             nil
-                             (list
-                              (counsel-extra-annotate-transform-get-function-key
-                               sym buff)
-                              (counsel-extra-annotate-transform-get-function-doc
-                               sym)))
-                            "\s"))))
+                           (or
+                            (when-let ((key (counsel-extra-annotate-transform-get-function-key
+                                             sym buff)))
+                              key)
+                            "")
+                           (when-let ((doc (counsel-extra-annotate-transform-get-function-doc
+                                            sym)))
+                             (concat
+                              (if counsel-extra-align-M-x-description
+                                  (propertize " " 'display
+                                              `(space :align-to
+                                                      ,(or
+                                                        counsel-extra-align-M-x-description
+                                                        50)))
+                                " ")
+                              doc)))))
               (cond ((eq sym major-mode)
                      (propertize result 'face 'font-lock-variable-name-face))
                     ((and

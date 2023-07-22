@@ -1,4 +1,4 @@
-;;; counsel-extra.el --- Configure extra -*- lexical-binding: t -*-
+;;; counsel-extra.el --- Extend counsel commands -*- lexical-binding: t -*-
 
 ;; Copyright (C) 2022 Karim Aziiev <karim.aziiev@gmail.com>
 
@@ -25,7 +25,7 @@
 
 ;;; Commentary:
 
-;; This file configures operations with extra
+;; Extends the functionality of Ivy and Counsel packages by providing extra utilities and commands.
 
 ;; Commands
 
@@ -400,7 +400,7 @@ If DIRECTORY is nil or missing, the current buffer's value of
 
 ;;;###autoload
 (defun counsel-extra-ivy-insert ()
-  "Insert ivy marked candidates or current choice."
+  "Return a string of marked candidates and insert it into the buffer."
   (interactive)
   (if-let ((marked-str
             (when ivy-marked-candidates
@@ -429,7 +429,8 @@ If DIRECTORY is nil or missing, the current buffer's value of
 
 ;;;###autoload
 (defun counsel-extra-expand-dir-maybe ()
-  "Counsel expand dir maybe."
+  "Visit or preview currently selected directory or file and stay in minibuffer.
+If it is not a valid directory, preview the file."
   (interactive)
   (let ((curr (ivy-state-current ivy-last))
         (dir))
@@ -452,12 +453,13 @@ If DIRECTORY is nil or missing, the current buffer's value of
 
 ;;;###autoload
 (defun counsel-extra-expand-dir-done ()
-  "Counsel expand dir done."
+  "Visit or preview currently selected directory or file.
+If it is a valid directory, visit it and stay in minibuffer, otervise
+execute default ivy action and exit minibuffer."
   (interactive)
-  (let
-      ((curr
-        (ivy-state-current ivy-last))
-       (dir))
+  (let ((curr
+         (ivy-state-current ivy-last))
+        (dir))
     (if
         (and
          (> ivy--length 0)
@@ -613,7 +615,7 @@ If DIRECTORY is nil or missing, the current buffer's value of
 
 ;;;###autoload
 (defun counsel-extra-add-extra-actions ()
-  "Add extra actions ot all ivy callers."
+  "Add extra actions to all Ivy callers."
   (interactive)
   (ivy-add-actions
    t
@@ -649,7 +651,8 @@ SYM should be a symbol."
         (when k
           (let ((i (cl-search [?\C-x ?6] k)))
             (when i
-              (let ((dup (vconcat (substring k 0 i) [f2]
+              (let ((dup (vconcat (substring k 0 i)
+                                  [f2]
                                   (substring k (+ i 2))))
                     (map (current-global-map)))
                 (when (equal (lookup-key map k)
@@ -679,8 +682,8 @@ SYM should be a symbol."
 
 
 (defun counsel-extra-annotate-transform-function-name (name)
-  "Return NAME annotated with its active key binding and documentation.
-NAME should be a string."
+  "Transforms a function NAME into an annotated string.
+Argument NAME is the name of the function."
   (or (ignore-errors
         (let ((buff
                (if-let ((minw (minibuffer-selected-window)))
@@ -736,7 +739,7 @@ NAME should be a string."
 
 ;;;###autoload
 (defun counsel-extra-kill-process ()
-  "Delete the selected process."
+  "Kill the currently selected process in the Ivy process list."
   (interactive)
   (counsel-list-processes-action-delete (ivy-state-current ivy-last))
   (with-temp-buffer
@@ -751,6 +754,7 @@ NAME should be a string."
 ;;;###autoload
 (defun counsel-extra-list-processes ()
   "Offer completion for `process-list'.
+
 The default action is to switch to the process buffer.
 An extra action allows to delete the selected process."
   (interactive)
@@ -766,7 +770,10 @@ An extra action allows to delete the selected process."
             :caller 'counsel-extra-list-processes))
 
 (defun counsel-extra-M-X-action (cmd)
-  "If minibuffer window active describe CMD, else execute CMD."
+  "Execute or describe command CMD dependending on whether minibuffer is live.
+
+If the minibuffer window is active, describe CMD with the `helpful-command' or
+ `describe-command', otherwise call `counsel-M-x-action' with CMD."
   (if
       (minibuffer-window-active-p (active-minibuffer-window))
       (funcall (if (fboundp 'helpful-command)
@@ -782,7 +789,7 @@ An extra action allows to delete the selected process."
 
 ;;;###autoload
 (defun counsel-extra-M-x ()
-  "Exta version of `execute-extended-command'."
+  "Extra version of `execute-extended-command'."
   (interactive)
   (setq this-command last-command)
   (setq real-this-command real-last-command)
@@ -812,7 +819,8 @@ An extra action allows to delete the selected process."
   :display-transformer-fn #'counsel-extra-annotate-transform-function-name)
 
 (defun counsel-extra-imenu-action-other-window (item)
-  "Jump to imenu ITEM in other window."
+  "Open the selected imenu ITEM in another window.
+Argument ITEM is the selected item."
   (let ((buff (current-buffer)))
     (select-window (or
                     (window-right (selected-window))
@@ -822,7 +830,8 @@ An extra action allows to delete the selected process."
     (funcall (counsel-extra-get-imenu-action) item)))
 
 (defun counsel-extra-imenu-insert (item)
-  "Insert imenu ITEM."
+  "Insert the extra imenu ITEM ITEM into the counsel extra buffer.
+Argument ITEM is the item to be inserted."
   (counsel-extra-insert
    (car
     (seq-drop-while
@@ -873,3 +882,6 @@ If the completion was successfully selected jump it original window."
 
 (provide 'counsel-extra)
 ;;; counsel-extra.el ends here
+;; Local Variables:
+;; checkdoc-symbol-words: (counsel-extra-M-x)
+;; End:

@@ -1,49 +1,187 @@
-* counsel-extra
-Extra commands and actions for counsel and ivy.
+#+OPTIONS: ^:nil tags:nil
 
-** Commands
+* About
 
-+ ~counsel-extra-bookmark~
-Forward to `bookmark-jump' or `bookmark-set' if bookmark doesn't exist.
+An Emacs library that extends the functionality of the [[https://github.com/abo-abo/swiper][ivy]] and [[https://github.com/abo-abo/swiper#counsel][counsel]] packages by providing extra utilities and commands.
 
-+ ~counsel-extra-bookmark-in-other-window~
-Open bookmark in other window.
+* Table of Contents                                       :TOC_2_gh:QUOTE:
+#+BEGIN_QUOTE
+- [[#about][About]]
+- [[#requirements][Requirements]]
+- [[#installation][Installation]]
+  - [[#with-use-package-and-straightel][With use-package and straight.el]]
+  - [[#manual-installation][Manual installation]]
+- [[#usage][Usage]]
+  - [[#extended-commands][Extended commands]]
+  - [[#file-commands][File commands]]
+  - [[#imenu-commands][Imenu commands]]
+  - [[#describe-commands][Describe commands]]
+  - [[#bookmark-commands][Bookmark commands]]
+  - [[#misc-commands][Misc commands]]
+- [[#customization][Customization]]
+#+END_QUOTE
 
-+ ~counsel-extra-find-symbol-in-other-window~ (&optional it)
-Find symbol definition that corresponds to string IT in other window.
+* Requirements
 
-+ ~counsel-extra-call-in-other-window~ (func &rest args)
-Switch to other window and call FUNC with ARGS.
+| Name      | Version |
+|-----------+---------|
+| Emacs     |    27.1 |
+| ~ivy~     |  0.13.4 |
+| ~counsel~ |  0.13.4 |
 
-+ ~counsel-extra-open-file-other-window~
-Quit the minibuffer and call `find-file-other-window' action.
 
-+ ~counsel-extra-move-file~
-Quit the minibuffer and call `counsel-find-file-move' action.
+* Installation
 
-+ ~counsel-extra-delete-file~
-Quit the minibuffer and call `counsel-find-file-delete' action.
+ The package requires ~Emacs~ 27.1 or later, as well as the ~ivy~ and ~counsel~ packages (version 0.13.4 or later).
 
-+ ~counsel-extra-copy-file~
-Quit the minibuffer and call `counsel-find-file-copy' action.
+** With use-package and straight.el
+#+begin_src elisp :eval no
+(use-package counsel-extra
+  :straight (:repo "KarimAziev/counsel-extra"
+                   :type git
+                   :host github)
+  :hook ((ivy-mode . counsel-extra-add-extra-actions)
+         (counsel-mode . counsel-extra-configure-find-file))
+  :bind ((:map counsel-extra-M-x-keymap
+               ("C-c o" . counsel-extra-M-X-find-symbol-in-other-window-cmd))
+         (:map counsel-extra-bookmark-map
+               ("C-c o" . counsel-extra-bookmark-in-other-window))))
+#+end_src
 
-+ ~counsel-extra-dired~
-Open file in Dired.
+** Manual installation
 
-+ ~counsel-extra-expand-dir-done~
-Counsel expand dir done.
+Download the source code and put it wherever you like, e.g. into =~/.emacs.d/counsel-extra/=
 
-+ ~counsel-extra-expand-dir-maybe~
-Counsel expand dir maybe.
+#+begin_src shell :eval no
+git clone https://github.com/KarimAziev/counsel-extra.git ~/.emacs.d/counsel-extra/
+#+end_src
 
-+ ~counsel-extra-ivy-mark~ (&optional _c)
-Mark or unmark current ivy candidate and go to the next match.
+Add the downloaded directory to the load path:
 
-+ ~counsel-extra-ivy-insert~
-Insert ivy marked candidates or current choice.
+#+begin_src elisp :eval no
+(add-to-list 'load-path "~/.emacs.d/counsel-extra/")
+(require 'counsel-extra)
+#+end_src
 
-+ ~counsel-extra-switch-to-buffer-other-window~
-Exit minibuffer with `ivy--switch-buffer-other-window-action'.
 
-+ ~counsel-extra-ivy-browse-url~
-If current ivy choice is url, open it in browser, else search in google.
+* Usage
+
+** Extended commands
+
+These commands are expected to be bound in the ~counsel-mode-map~.
+#+begin_export html
+
+<details>
+  <summary>Show example</summary>
+
+```elisp
+#+begin_src emacs-lisp
+(require 'counsel)
+(require 'counsel-extra)
+(define-key counsel-mode-map (kbd "C-x P") 'counsel-extra-list-processes)
+(define-key counsel-mode-map (vector 'remap 'execute-extended-command) 'counsel-extra-M-x)
+
+#+end_src
+
+```
+</details>
+#+end_export
+
+- =counsel-extra-M-x= - Extra version of =execute-extended-command=.
+- =counsel-extra-list-processes= - Offer completion for =process-list=. The default action is to switch to the process buffer. An extra action allows to delete the selected process.
+
+
+** File commands
+These commands are expected to be bound in the ~counsel-find-file-map~.
+#+begin_export html
+
+<details>
+  <summary>Show example</summary>
+
+```elisp
+(define-key counsel-find-file-map (kbd "C-j") 'counsel-extra-expand-dir-maybe)
+(define-key counsel-find-file-map (kbd "RET") 'counsel-extra-expand-dir-done)
+(define-key counsel-find-file-map (kbd "M-D") 'counsel-extra-delete-file)
+(define-key counsel-find-file-map (kbd "C-c M-w") 'counsel-extra-copy-file)
+(define-key counsel-find-file-map (kbd "C-c M-m") 'counsel-extra-move-file)
+(define-key counsel-find-file-map (kbd "C-c o") 'counsel-extra-open-file-other-window)
+(define-key counsel-find-file-map (kbd "C-x d") 'counsel-extra-dired)
+```
+</details>
+#+end_export
+
+- =M-x counsel-extra-open-file-other-window= - Quit the minibuffer and call =find-file-other-window= action.
+- =M-x counsel-extra-move-file= - Quit the minibuffer and call =counsel-find-file-move= action.
+- =M-x counsel-extra-delete-file= - Quit the minibuffer and call =counsel-find-file-delete= action.
+- =M-x counsel-extra-copy-file= - Quit the minibuffer and call =counsel-find-file-copy= action.
+- =M-x counsel-extra-dired= - Open file in Dired.
+- =M-x counsel-extra-expand-dir-done= - Visit or preview currently selected directory or file. If it is a valid directory, visit it and stay in minibuffer, otervise
+execute default ivy action and exit minibuffer.
+- =M-x counsel-extra-expand-dir-maybe= - Visit or preview currently selected directory or file and stay in minibuffer. If it is not a valid directory, preview the file.
+
+** Imenu commands
+These commands are expected to be bound in the ~counsel-imenu-map~.
+#+begin_export html
+
+<details>
+  <summary>Show example</summary>
+
+```elisp
+(define-key counsel-imenu-map (kbd "C-c o") 'counsel-extra-imenu-jump-to-item-in-other-window)
+(define-key counsel-imenu-map (kbd "C-c TAB") 'counsel-extra-imenu-insert-cmd)
+
+```
+</details>
+#+end_export
+
+- =M-x counsel-extra-imenu-insert-cmd= - Quit the minibuffer and insert imenu item.
+- =M-x counsel-extra-imenu-jump-to-item-in-other-window= - Jump to imenu item in other window
+
+** Describe commands
+
+This command is supposed to be bound to ~counsel-describe-map~.
+#+begin_export html
+
+<details>
+  <summary>Show example</summary>
+
+```elisp
+(define-key counsel-describe-map (kbd "C-c o") 'counsel-extra-find-symbol-in-other-window)
+
+```
+</details>
+#+end_export
+
+
+
+- =M-x counsel-extra-find-symbol-in-other-window= - find symbol in other window and exit minibuffer.
+
+** Bookmark commands
+- =M-x counsel-extra-bookmark= - Forward to =bookmark-jump= or =bookmark-set= if the bookmark doesn't exist.
+- =M-x counsel-extra-bookmark-in-other-window= - Open bookmark in another window.
+
+
+** Misc commands
+These commands are expected to be bound in the ~ivy-minibuffer-map~.
+
+#+begin_export html
+
+<details>
+  <summary>Show example</summary>
+
+```elisp
+(define-key ivy-minibuffer-map (kbd "C-c C-p") 'counsel-extra-pp-ivy)
+(define-key ivy-minibuffer-map (kbd "C-c C-i") 'counsel-extra-ivy-insert)
+(define-key ivy-minibuffer-map (kbd "C-SPC") 'counsel-extra-ivy-mark)
+(define-key ivy-minibuffer-map (kbd "C-c g g") 'counsel-extra-ivy-browse-url)
+(define-key ivy-minibuffer-map (kbd "M-w") 'counsel-extra-ivy-copy)
+
+
+```
+</details>
+#+end_export
+
+* Customization
+
+*** ~counsel-extra-align-M-x-description~
+Whether to align command descriptions. If nil, don't align, if integer align to those column.

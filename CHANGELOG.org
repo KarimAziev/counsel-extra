@@ -1,3 +1,12 @@
-* v0.1.1
-- Init changelog.
+* v0.2.0    2023-07-22
+
+- Add new command ~counsel-extra-colors-emacs~
+- Add new custom variable for aligning annotations ~counsel-extra-align-M-x-description~
+- Remove extraneous autoloads for non-commands
+- Replace ~counsel-extra-preview-mode~ with simple commands
+- Improve documentation
+
+* v0.1.1    2023-07-22
+
+- Initial beta release.
 

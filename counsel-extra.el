@@ -102,6 +102,19 @@ If nil, don't align, if integer align to those column."
                  (integer :tag "Column" 50))
   :group 'counsel-extra)
 
+(defcustom counsel-extra-show-modified-time nil
+  "Whether to show file modified time when reading filename."
+  :group 'counsel-extra
+  :type 'boolean)
+
+(defcustom counsel-extra-align-modified-time 80
+  "Whether to align modified time when reading filename.
+If nil, don't align, if integer align to those column.
+This option has effect only if `counsel-extra-show-modified-time' is enabled."
+  :type '(choice (const :tag "No align" nil)
+                 (integer :tag "Column" 80))
+  :group 'counsel-extra)
+
 (defvar counsel-extra-preview-momentary-buffer-name "*counsel-extra-preview-*")
 
 (declare-function bookmark-all-names "bookmark")
@@ -163,16 +176,18 @@ as running find file hooks, starting lsp or eglot servers and so on."
       (let ((buffer (get-buffer-create "*counsel-extra-preview-file*")))
         (with-current-buffer buffer
           (with-current-buffer-window buffer
-              buffer
               (cons 'display-buffer-in-direction
                     '((window-height . fit-window-to-buffer)))
-            (lambda (window _value)
-              (with-selected-window window
-                (setq buffer-read-only t)
-                (let ((inhibit-read-only t))
-                  (unwind-protect
-                      (read-key-sequence "")
-                    (quit-restore-window window 'kill)))))
+              (lambda (window _value)
+                (with-selected-window window
+                  (setq buffer-read-only t)
+                  (let ((inhibit-read-only t))
+                    (unwind-protect
+                        (read-key-sequence "")
+                      (quit-restore-window window 'kill)
+                      (setq unread-command-events
+                            (append (this-single-command-raw-keys)
+                                    unread-command-events))))))
             (if (file-directory-p file)
                 (dired file)
               (insert-file-contents file)
@@ -183,11 +198,40 @@ as running find file hooks, starting lsp or eglot servers and so on."
               (setq header-line-format
                     (abbreviate-file-name file)))))))))
 
+(defun counsel-extra-format-time-readable (time)
+  "Calculate and format the time difference from the current TIME.
+
+Argument TIME is the time value that will be compared with the current time to
+calculate the time difference."
+  (let ((diff-secs (-
+                    (float-time (current-time))
+                    (float-time time))))
+    (pcase-let ((`(,format-str . ,value)
+                 (cond ((< diff-secs 60)
+                        (cons "%d second" (truncate diff-secs)))
+                       ((< diff-secs 3600)
+                        (cons "%d minute" (truncate (/ diff-secs 60))))
+                       ((< diff-secs 86400)
+                        (cons "%d hour" (truncate (/ diff-secs 3600))))
+                       ((< diff-secs 2592000)
+                        (cons "%d day" (truncate (/ diff-secs 86400))))
+                       (t
+                        (cons "%d month" (truncate (/ diff-secs 2592000)))))))
+      (format (concat format-str (if (= value 1) " ago" "s ago")) value))))
 
 (defun counsel-extra-read-file-display-transformer (str)
   "Transform filename STR when reading files."
-  (when-let ((filename (expand-file-name str (ivy-state-directory ivy-last))))
+  (let ((filename (expand-file-name str (ivy-state-directory ivy-last))))
     (let ((parts (delete nil `(,str ,(file-symlink-p filename))))
+          (mod-time
+           (and counsel-extra-show-modified-time
+                (counsel-extra-format-time-readable
+                 (file-attribute-modification-time
+                  (file-attributes (if (file-directory-p
+                                        filename)
+                                       (file-name-as-directory
+                                        filename)
+                                     filename))))))
           (face
            (cond ((not (file-readable-p filename)) 'ivy-match-required-face)
                  ((file-accessible-directory-p filename) 'ivy-subdir)
@@ -197,34 +241,33 @@ as running find file hooks, starting lsp or eglot servers and so on."
                   'compilation-info)
                  (t nil)))
           result)
+      (when face (setcar parts (propertize (car parts) 'face face)))
       (setq result (string-join parts " => "))
-      (if face
-          (propertize result 'face face)
+      (if mod-time
+          (concat result
+                  (if counsel-extra-align-modified-time
+                      (propertize " " 'display
+                                  (list 'space :align-to
+                                        counsel-extra-align-modified-time))
+                    " ")
+                  mod-time)
         result))))
+
 
 (defun counsel-extra-ivy-sort-file-function (a b)
   "Compare filename A and filename B."
   (let* ((x (concat ivy--directory a))
          (y (concat ivy--directory b))
          (x-mtime (nth 5 (file-attributes x)))
-         (y-mtime (nth 5 (file-attributes y)))
-         (a-count (if (string-match-p "^[.]" a)
-                      1
-                    0))
-         (b-count (if (string-match-p "^[.]" b)
-                      1
-                    0))
-         (result (> b-count a-count)))
+         (y-mtime (nth 5 (file-attributes y))))
     (cond ((and (file-directory-p x)
                 (file-directory-p y))
-           result)
+           (time-less-p y-mtime x-mtime))
           ((file-directory-p x)
            t)
           ((and (file-directory-p y))
            nil)
-          ((= a-count b-count)
-           (time-less-p y-mtime x-mtime))
-          (t result))))
+          (t (time-less-p y-mtime x-mtime)))))
 
 (defun counsel-extra-ivy-browse-url-action (item)
   "If ITEM is url, open it in browser, else search in google."

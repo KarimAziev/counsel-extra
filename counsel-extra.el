@@ -115,57 +115,8 @@ This option has effect only if `counsel-extra-show-modified-time' is enabled."
                  (integer :tag "Column" 80))
   :group 'counsel-extra)
 
-(defvar counsel-extra-preview-momentary-buffer-name "*counsel-extra-preview-*")
 
 (declare-function bookmark-all-names "bookmark")
-
-(defun counsel-extra-preview-fontify (content &optional mode-fn &rest args)
-  "Fontify CONTENT according to MODE-FN called with ARGS.
-If CONTENT is not a string, instead of MODE-FN emacs-lisp-mode will be used."
-  (with-temp-buffer
-    (delay-mode-hooks
-      (apply (or mode-fn 'emacs-lisp-mode) args)
-      (goto-char (point-min))
-      (insert (if (or (eq major-mode 'emacs-lisp-mode)
-                      (not (stringp content)))
-                  (pp-to-string content)
-                content))
-      (font-lock-ensure)
-      (buffer-string))))
-
-
-
-(defun counsel-extra-preview (content &rest setup-args)
-  "Momentarily display CONTENT in popup window.
-Display remains until next event is input.
-
-Persist popup if input is a key binding of a command
- `counsel-extra-preview-open-inspector'in `counsel-extra-preview-switch-keymap'.
-
-SETUP-ARGS can includes keymaps, syntax table, filename and function.
-See a function `counsel-extra-preview-open-inspector'."
-  (let ((buffer (get-buffer-create
-                 counsel-extra-preview-momentary-buffer-name))
-        (mode-fn (seq-find #'functionp setup-args)))
-    (with-current-buffer buffer
-      (with-current-buffer-window buffer
-          buffer
-          (cons 'display-buffer-in-side-window
-                '((window-height . fit-window-to-buffer)))
-        (lambda (window _value)
-          (with-selected-window window
-            (setq buffer-read-only t)
-            (let ((inhibit-read-only t))
-              (unwind-protect
-                  (read-key-sequence "")
-                (quit-restore-window window 'kill)))))
-        (insert (if (or
-                     mode-fn
-                     (not (stringp content)))
-                    (apply
-                     #'counsel-extra-preview-fontify
-                     (list content mode-fn))
-                  content))))))
 
 (defun counsel-extra--preview-file (file)
   "Preview FILE in other window.

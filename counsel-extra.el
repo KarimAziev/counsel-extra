@@ -273,20 +273,26 @@ except that ] is never special and \ quotes ^, - or \ (but
     (buffer-substring-no-properties (car bounds)
                                     (cdr bounds))))
 
-(defun counsel-extra-insert (item &optional separator)
-  "Insert or complete ITEM and SEPARATOR.
-If word at point is prefix of ITEM, complete it, else insert ITEM.
-Optional argument SEPARATOR is a string to insert just after ITEM.
-Default value of SEPARATOR is space."
+(defun counsel-extra-insert (item &optional separator word-pattern)
+  "Insert text with optional prefix handling.
+
+Argument ITEM is the string or cons cell to be inserted.
+
+Optional argument SEPARATOR is the string used to separate ITEM from the current
+word. It defaults to a single space.
+
+Optional argument WORD-PATTERN is a regular expression pattern that defines what
+constitutes a word for the purpose of insertion."
   (let ((parts))
     (setq item (if (consp item)
                    (car item)
                  item))
     (setq parts
           (if-let ((current-word (counsel-extra-get-word
-                                  "-*_~$A-Za-z0-9:#\\+")))
+                                  (or word-pattern
+                                      "-*_~$A-Za-z0-9:#\\+"))))
               (progn
-                (if (string-prefix-p current-word item)
+                (if (string-prefix-p current-word item t)
                     (list (substring-no-properties
                            item (length current-word)))
                   (list (or separator "\s") item)))
@@ -681,9 +687,11 @@ Argument NAME is the name of the function."
                     (t result))))))
       name))
 
-(defun counsel-extra-M-X-find-symbol-in-other-window (it)
-  "Find symbol definition that corresponds to string IT in other window."
-  (counsel-extra-call-in-other-window 'counsel-extra-find-symbol it))
+(defun counsel-extra-M-X-find-symbol-in-other-window (name)
+  "Find symbol in a new window.
+
+Argument NAME is a string representing the symbol to find."
+  (counsel-extra-call-in-other-window 'counsel-extra-find-symbol name))
 
 ;;;###autoload
 (defun counsel-extra-M-X-find-symbol-in-other-window-cmd ()
@@ -970,6 +978,21 @@ it's keymap - `counsel-extra-emacs-colors-map'."
 
 (ivy-configure 'counsel-extra-colors-emacs
   :format-fn #'counsel--colors-emacs-format-function)
+
+;;;###autoload
+(defun counsel-extra-search ()
+  "Search dynamically with Ivy interface and insert results."
+  (interactive)
+  (require 'request)
+  (require 'json)
+  (let ((word-pattern "-*_~A-Za-z0-9:$"))
+    (ivy-read "search: " #'counsel-search-function
+              :action (lambda (it)
+                        (counsel-extra-insert it "\s" word-pattern)
+                        (insert "\s"))
+              :dynamic-collection t
+              :initial-input (counsel-extra-get-word word-pattern)
+              :caller 'counsel-extra-search)))
 
 (provide 'counsel-extra)
 ;;; counsel-extra.el ends here

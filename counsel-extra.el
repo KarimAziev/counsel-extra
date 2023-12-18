@@ -6,7 +6,7 @@
 ;; URL: https://github.com/KarimAziev/counsel-extra
 ;; Keywords: lisp, convenience
 ;; Version: 0.2.0
-;; Package-Requires: ((emacs "27.1") (ivy "0.14.0") (counsel "0.14.0"))
+;; Package-Requires: ((emacs "28.1") (ivy "0.14.0") (counsel "0.14.0"))
 ;; SPDX-License-Identifier: GPL-3.0-or-later
 
 ;; This file is NOT part of GNU Emacs.
@@ -993,6 +993,17 @@ it's keymap - `counsel-extra-emacs-colors-map'."
               :dynamic-collection t
               :initial-input (counsel-extra-get-word word-pattern)
               :caller 'counsel-extra-search)))
+
+;;;###autoload (autoload 'counsel-extra-color-menu "counsel-extra" nil t)
+(transient-define-prefix counsel-extra-color-menu ()
+  [[("c" "emacs colors" counsel-extra-colors-emacs)
+    ("w" "web colors" counsel-colors-web)
+    ("t" "text properties at point" describe-text-properties)
+    ("l" "load theme" counsel-load-theme)
+    ("f" "faces list" counsel-faces)
+    ("F" "customize face" customize-face)
+    ("d" "describe face" counsel-describe-face)
+    ("o" "fonts" counsel-fonts)]])
 
 (provide 'counsel-extra)
 ;;; counsel-extra.el ends here

@@ -612,7 +612,7 @@ SYM should be a symbol."
   (when (commandp sym)
     (with-current-buffer buffer
       (let ((k (where-is-internal sym nil t)))
-        (when k
+        (when (and k (eq sym (key-binding k)))
           (let ((i (cl-search [?\C-x ?6] k)))
             (when i
               (let ((dup (vconcat (substring k 0 i)

@@ -172,7 +172,9 @@ calculate the time difference."
 
 (defun counsel-extra-read-file-display-transformer (str)
   "Transform filename STR when reading files."
-  (let ((filename (expand-file-name str (ivy-state-directory ivy-last))))
+  (let ((filename (expand-file-name str (or ivy--directory
+                                            (ivy-state-directory
+                                             ivy-last)))))
     (let ((parts (delete nil `(,str ,(file-symlink-p filename))))
           (mod-time
            (and counsel-extra-show-modified-time

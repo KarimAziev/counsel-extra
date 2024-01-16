@@ -1,3 +1,6 @@
+* v0.3.0    2024-01-16
+- Add a custom variable =counsel-extra-M-X-predicates= to allow for command filtering predicates in =counsel-extra-M-x=. This enables cycling through different command predicates during completion with =counsel-extra-M-X-cycle-predicates=, which is bound by default to =M-X= in =counsel-extra-M-x-keymap=.
+
 * v0.2.0    2023-07-22
 
 - Add new command ~counsel-extra-colors-emacs~

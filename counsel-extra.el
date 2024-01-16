@@ -97,9 +97,10 @@
 
 (defcustom counsel-extra-align-M-x-description nil
   "Whether to align command descriptions.
+
 If nil, don't align, if integer align to those column."
   :type '(choice (const :tag "No align" nil)
-                 (integer :tag "Column" 50))
+          (integer :tag "Column" 50))
   :group 'counsel-extra)
 
 (defcustom counsel-extra-show-modified-time nil
@@ -109,11 +110,45 @@ If nil, don't align, if integer align to those column."
 
 (defcustom counsel-extra-align-modified-time 80
   "Whether to align modified time when reading filename.
+
 If nil, don't align, if integer align to those column.
+
 This option has effect only if `counsel-extra-show-modified-time' is enabled."
   :type '(choice (const :tag "No align" nil)
-                 (integer :tag "Column" 80))
+          (integer :tag "Column" 80))
   :group 'counsel-extra)
+
+(defcustom counsel-extra-M-X-predicates (delete-dups
+                                         (and (boundp
+                                               'read-extended-command-predicate)
+                                              (remove nil
+                                                      (append
+                                                       (list
+                                                        read-extended-command-predicate)
+                                                       (mapcar (lambda
+                                                                 (opt)
+                                                                 (or (functionp
+                                                                      opt)
+                                                                     (seq-find
+                                                                      'functionp
+                                                                      opt)))
+                                                               (cdr
+                                                                (get
+                                                                 'read-extended-command-predicate
+                                                                 'custom-type)))))))
+  "Command filtering predicates in `counsel-extra-execute-extended-command'.
+
+Each predicate is a function that accepts two arguments: the command's symbol
+and the current buffer.
+
+Predicates can be cycled through during command completion by executing command
+`counsel-extra-M-X-cycle-predicates' - which is bound to \\<counsel-extra-M-x-keymap>\\[counsel-extra-M-X-cycle-predicates]
+in `counsel-extra-M-x-keymap'.
+
+The default predicates are derived from the `read-extended-command-predicate'
+variable if it is set, including any related custom types defined for it."
+  :group 'counsel-extra
+  :type '(repeat function))
 
 
 (declare-function bookmark-all-names "bookmark")
@@ -705,6 +740,7 @@ Argument NAME is a string representing the symbol to find."
   (let ((map (make-sparse-keymap)))
     (define-key map (kbd "C-c C-j") #'counsel-find-symbol)
     (define-key map (kbd "C-c C-l") #'counsel--info-lookup-symbol)
+    (define-key map (kbd "M-X") #'counsel-extra-M-X-cycle-predicates)
     map))
 
 ;;;###autoload
@@ -757,20 +793,60 @@ If the minibuffer window is active, describe CMD with the `helpful-command' or
   "Set value of the variable `ivy-text' to `counsel-extra-M-x-initial-input'."
   (setq counsel-extra-M-x-initial-input ivy-text))
 
-;;;###autoload
-(defun counsel-extra-M-x ()
-  "Extra version of `execute-extended-command'."
+
+(defun counsel-extra-M-X-cycle-predicates ()
+  "Cycle through command filtering predicates."
   (interactive)
-  (setq this-command last-command)
-  (setq real-this-command real-last-command)
-  (setq counsel-extra-M-X-externs
-        (counsel--M-x-externs))
-  (ivy-configure 'counsel-extra-M-x
-    :display-transformer-fn #'counsel-extra-annotate-transform-function-name)
-  (ivy-read (counsel--M-x-prompt) counsel-extra-M-X-externs
-            :predicate (if counsel-extra-M-X-externs
-                           #'counsel--M-x-externs-predicate
-                         (counsel--M-x-make-predicate))
+  (when (boundp 'read-extended-command-predicate)
+    (let ((next (cadr (memq read-extended-command-predicate
+                            (append (list nil)
+                                    counsel-extra-M-X-predicates)))))
+      (ivy-quit-and-run
+        (let* ((read-extended-command-predicate
+                next)
+               (prompt
+                (string-join
+                 (delq nil
+                       (list
+                        (counsel--M-x-prompt)
+                        (cond ((not
+                                read-extended-command-predicate)
+                               "(No filters) ")
+                              ((symbolp
+                                read-extended-command-predicate)
+                               (format "(%s) "
+                                       (symbol-name
+                                        read-extended-command-predicate))))))
+                 "")))
+          (counsel-extra--M-x-read
+           prompt
+           (or counsel-extra-M-X-externs
+               obarray)))))))
+
+
+(defun counsel-extra--M-x-read (prompt collection)
+  "Read command name from a COLLECTION.
+
+Argument PROMPT is a string to display as the prompt in the minibuffer.
+
+Argument COLLECTION is a list or array to be used for completion."
+  (ivy-read prompt collection
+            :predicate
+            (let ((buf (current-buffer)))
+              (lambda (str)
+                (when-let ((sym (intern-soft str)))
+                  (and (commandp sym)
+                       (not (get sym 'byte-obsolete-info))
+                       (not (get sym 'no-counsel-M-x))
+                       (cond ((not (bound-and-true-p
+                                    read-extended-command-predicate)))
+                             ((functionp read-extended-command-predicate)
+                              (condition-case-unless-debug err
+                                  (funcall read-extended-command-predicate sym
+                                           buf)
+                                (error (message
+                                        "read-extended-command-predicate: %s: %s"
+                                        sym (error-message-string err))))))))))
             :require-match t
             :initial-input counsel-extra-M-x-initial-input
             :history 'counsel-M-x-history
@@ -780,6 +856,31 @@ If the minibuffer window is active, describe CMD with the `helpful-command' or
             :keymap counsel-extra-M-x-keymap
             :action #'counsel-extra-M-X-action
             :caller 'counsel-extra-M-x))
+
+;;;###autoload
+(defun counsel-extra-M-x ()
+  "Extra version of `execute-extended-command'.
+
+Execute \\<counsel-extra-M-x-keymap>\\[counsel-extra-M-X-cycle-predicates] (`counsel-extra-M-X-cycle-predicates')
+during command completion to cycle through filtering predicates defined in
+`counsel-extra-M-X-cycle-predicates'.
+
+Other commands available during command completion:
+
+\\<counsel-extra-M-x-keymap>\\{counsel-extra-M-x-keymap}."
+  (interactive)
+  (setq this-command last-command)
+  (setq real-this-command real-last-command)
+  (setq counsel-extra-M-X-externs
+        (counsel--M-x-externs))
+  (ivy-configure 'counsel-extra-M-x
+    :display-transformer-fn #'counsel-extra-annotate-transform-function-name)
+  (counsel-extra--M-x-read (counsel--M-x-prompt)
+                           (or counsel-extra-M-X-externs
+                               obarray)))
+
+(defalias 'counsel-extra-execute-extended-command
+  #'counsel-extra-M-x)
 
 (ivy-set-actions 'counsel-extra-M-x
                  '(("j" counsel--find-symbol "Jump to defintion")

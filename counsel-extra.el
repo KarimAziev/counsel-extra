@@ -166,9 +166,6 @@ as running find file hooks, starting lsp or eglot servers and so on."
                      (file-attribute-size
                       (file-attributes
                        (file-truename file)))))
-                (message "size %s large %s"
-                         (file-size-human-readable size)
-                         (file-size-human-readable large-file-warning-threshold))
                 (and size
                      (> size
                         large-file-warning-threshold)

@@ -94,6 +94,7 @@
 (declare-function face-remap-remove-relative "face-remap")
 (declare-function face-remap-add-relative "face-remap")
 (declare-function bookmark-location "bookmark")
+(declare-function bookmark-all-names "bookmark")
 
 (defcustom counsel-extra-align-M-x-description nil
   "Whether to align command descriptions.
@@ -151,38 +152,54 @@ variable if it is set, including any related custom types defined for it."
   :type '(repeat function))
 
 
-(declare-function bookmark-all-names "bookmark")
-
 (defun counsel-extra--preview-file (file)
   "Preview FILE in other window.
 This function doesn't really visit FILE to avoid unwanted side effects, such
 as running find file hooks, starting lsp or eglot servers and so on."
-  (when (and file (file-exists-p file))
-    (with-minibuffer-selected-window
-      (let ((buffer (get-buffer-create "*counsel-extra-preview-file*")))
-        (with-current-buffer buffer
-          (with-current-buffer-window buffer
-              (cons 'display-buffer-in-direction
-                    '((window-height . fit-window-to-buffer)))
-              (lambda (window _value)
-                (with-selected-window window
-                  (setq buffer-read-only t)
-                  (let ((inhibit-read-only t))
-                    (unwind-protect
-                        (read-key-sequence "")
-                      (quit-restore-window window 'kill)
-                      (setq unread-command-events
-                            (append (this-single-command-raw-keys)
-                                    unread-command-events))))))
-            (if (file-directory-p file)
-                (dired file)
-              (insert-file-contents file)
-              (let ((buffer-file-name file))
-                (ignore-errors
-                  (delay-mode-hooks (set-auto-mode)
-                                    (font-lock-ensure))))
-              (setq header-line-format
-                    (abbreviate-file-name file)))))))))
+  (cond ((or (not file)
+             (not (file-exists-p file)))
+         (message "File is not exists"))
+        ((not (file-readable-p file))
+         (message "File is not readable"))
+        ((and large-file-warning-threshold
+              (let ((size
+                     (file-attribute-size
+                      (file-attributes
+                       (file-truename file)))))
+                (message "size %s large %s"
+                         (file-size-human-readable size)
+                         (file-size-human-readable large-file-warning-threshold))
+                (and size
+                     (> size
+                        large-file-warning-threshold)
+                     (message
+                      "File is too large (%s) for preview "
+                      (file-size-human-readable size))))))
+        (t (with-minibuffer-selected-window
+             (let ((buffer (get-buffer-create "*counsel-extra-preview-file*")))
+               (with-current-buffer buffer
+                 (with-current-buffer-window buffer
+                     (cons 'display-buffer-in-direction
+                           '((window-height . fit-window-to-buffer)))
+                     (lambda (window _value)
+                       (with-selected-window window
+                         (setq buffer-read-only t)
+                         (let ((inhibit-read-only t))
+                           (unwind-protect
+                               (read-key-sequence "")
+                             (quit-restore-window window 'kill)
+                             (setq unread-command-events
+                                   (append (this-single-command-raw-keys)
+                                           unread-command-events))))))
+                   (if (file-directory-p file)
+                       (dired file)
+                     (insert-file-contents file)
+                     (let ((buffer-file-name file))
+                       (ignore-errors
+                         (delay-mode-hooks (set-auto-mode)
+                                           (font-lock-ensure))))
+                     (setq header-line-format
+                           (abbreviate-file-name file))))))))))
 
 (defun counsel-extra-format-time-readable (time)
   "Calculate and format the time difference from the current TIME.
@@ -429,54 +446,72 @@ If DIRECTORY is nil or missing, the current buffer's value of
     (funcall #'ivy--mark (ivy-state-current ivy-last)))
   (ivy-next-line))
 
+
 ;;;###autoload
 (defun counsel-extra-expand-dir-maybe ()
-  "Visit or preview currently selected directory or file and stay in minibuffer.
-If it is not a valid directory, preview the file."
+  "Handle selected minibuffer file action without closing minibuffer.
+
+This function examines the currently selected file in the minibuffer and
+performs one of the following actions based on the file type:
+
+- If the selected file is a directory, it expands this directory within the
+  minibuffer, allowing further navigation within it.
+
+- If the selected file has an extension that is listed in
+  `counsel-find-file-extern-extensions', the file is opened with an external
+  application associated with its file type. This list can be customized to
+  support opening additional file types with external applications.
+
+- Otherwise, the selected file is previewed in a temporary buffer. This allows
+  for a quick look at the file contents without opening it in a permanent buffer
+  or leaving the minibuffer."
   (interactive)
   (let ((curr (ivy-state-current ivy-last))
         (dir))
-    (if (and
-         (> ivy--length 0)
-         (not (string= curr "./"))
-         (setq dir
-               (ivy-expand-file-if-directory
-                curr)))
-        (progn
-          (ivy--cd dir)
-          (ivy--exhibit))
-      (if-let ((ext (member (file-name-extension curr)
-                            '("mp4" "mkv" "xlsx" "png" "jpg" "jpeg"
-                              "webm" "3gp" "mp4" "MOV"))))
-          (ivy-call)
-        (counsel-extra--preview-file
-         (expand-file-name curr ivy--directory))))))
+    (cond ((and
+            (> ivy--length 0)
+            (not (string= curr "./"))
+            (setq dir
+                  (ivy-expand-file-if-directory
+                   curr)))
+           (ivy--cd dir)
+           (ivy--exhibit))
+          ((let ((ext (file-name-extension curr)))
+             (when ext
+               (let ((extensions (if
+                                     (boundp
+                                      'counsel-find-file-extern-extensions)
+                                     counsel-find-file-extern-extensions
+                                   '("mp4" "mkv" "xlsx" "png" "jpg" "jpeg"
+                                     "webm" "3gp" "MOV"))))
+                 (or (member ext extensions)
+                     (member (downcase ext) extensions)
+                     (member (upcase ext) extensions)))))
+           (counsel-find-file-extern (expand-file-name curr ivy--directory)))
+          (t (counsel-extra--preview-file
+              (expand-file-name curr ivy--directory))))))
 
 ;;;###autoload
 (defun counsel-extra-expand-dir-done ()
-  "Visit or preview currently selected directory or file.
-If it is a valid directory, visit it and stay in minibuffer, otervise
-execute default ivy action and exit minibuffer."
+  "Expand directory in Ivy completion or finish selection."
   (interactive)
-  (let ((curr
-         (ivy-state-current ivy-last))
+  (let ((curr (ivy-state-current ivy-last))
         (dir))
     (if
-        (and
-         (> ivy--length 0)
-         (not
-          (string= curr "./"))
-         (setq dir
-               (ivy-expand-file-if-directory
-                curr)))
-        (progn
-          (ivy--cd dir)
-          (ivy--exhibit))
-      (ivy-done))))
+        (not (and
+              (> ivy--length 0)
+              (not
+               (string= curr "./"))
+              (setq dir
+                    (ivy-expand-file-if-directory
+                     curr))))
+        (ivy-done)
+      (ivy--cd dir)
+      (ivy--exhibit))))
 
 ;;;###autoload
 (defun counsel-extra-dired ()
-  "Open file in Dired."
+  "Open Dired in the parent directory of the selected file."
   (interactive)
   (when-let* ((filename (counsel-extra-expand-file-when-exists
                          (ivy-state-current

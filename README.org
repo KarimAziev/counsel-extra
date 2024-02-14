@@ -25,14 +25,14 @@ An Emacs library that extends the functionality of the [[https://github.com/abo-
 
 | Name      | Version |
 |-----------+---------|
-| Emacs     |    27.1 |
-| ~ivy~     |  0.13.4 |
-| ~counsel~ |  0.13.4 |
+| Emacs     |    28.1 |
+| ~ivy~     |  0.14.0 |
+| ~counsel~ |  0.14.0 |
 
 
 * Installation
 
- The package requires ~Emacs~ 27.1 or later, as well as the ~ivy~ and ~counsel~ packages (version 0.13.4 or later).
+ The package requires ~Emacs~ 28.1 or later, as well as the ~ivy~ and ~counsel~ packages (version 0.14.0 or later).
 
 ** With use-package and straight.el
 #+begin_src elisp :eval no
@@ -47,6 +47,60 @@ An Emacs library that extends the functionality of the [[https://github.com/abo-
          (:map counsel-extra-bookmark-map
                ("C-c o" . counsel-extra-bookmark-in-other-window))))
 #+end_src
+
+#+html: <details><summary>Full example of configuration</summary>
+#+begin_src elisp
+(use-package counsel-extra
+  :after counsel
+  :demand t
+  :straight (:repo "KarimAziev/counsel-extra"
+             :type git
+             :host github)
+  :bind (("C-x C-c" . counsel-extra-color-menu)
+         (:map counsel-extra-M-x-keymap
+          ("C-c o" . counsel-extra-M-X-find-symbol-in-other-window-cmd))
+         (:map counsel-extra-bookmark-map
+          ("C-c o" . counsel-extra-bookmark-in-other-window))
+         (:map ivy-minibuffer-map
+          :package ivy
+          ("C-c TAB" . counsel-extra-ivy-insert)
+          ("C-SPC" . counsel-extra-ivy-mark)
+          ("M-w" . counsel-extra-ivy-copy)
+          ("C-c g g" . counsel-extra-ivy-browse-url))
+         (:map ivy-switch-buffer-map
+          :package ivy
+          ("C-c TAB" . counsel-extra-ivy-insert)
+          ("C-c o" . counsel-extra-switch-to-buffer-other-window))
+         (:map counsel-mode-map
+          :package counsel
+          ("C-c g s" . counsel-extra-search)
+          ("C-x P" . counsel-extra-list-processes)
+          ([remap execute-extended-command] . counsel-extra-M-x))
+         (:map counsel-find-file-map
+          :package counsel
+          ("C-j" . counsel-extra-expand-dir-maybe)
+          ("RET" . counsel-extra-expand-dir-done)
+          ("M-D" . counsel-extra-delete-file)
+          ("C-c M-w" . counsel-extra-copy-file)
+          ("C-c M-r" . counsel-extra-move-file)
+          ("C-c o" . counsel-extra-open-file-other-window)
+          ("C-x d" . counsel-extra-dired))
+         (:map counsel-imenu-map
+          :package counsel
+          ("C-c TAB" . counsel-extra-imenu-insert-cmd)
+          ("C-c o" . counsel-extra-imenu-jump-to-item-in-other-window))
+         (:map counsel-describe-map
+          :package counsel
+          ("C-c o" . counsel-extra-find-symbol-in-other-window)))
+  :config
+  (setq-default counsel-extra-align-M-x-description 50
+                counsel-extra-show-modified-time t)
+  (when (fboundp 'counsel-extra-add-extra-actions)
+    (counsel-extra-add-extra-actions))
+  (when (fboundp 'counsel-extra-configure-find-file)
+    (counsel-extra-configure-find-file)))
+#+end_src
+#+html: </details>
 
 ** Manual installation
 
@@ -70,21 +124,19 @@ Add the downloaded directory to the load path:
 
 These commands are expected to be bound in the ~counsel-mode-map~.
 
-#+begin_export html
-<details>
-  <summary>Show example</summary>
+#+html: <details><summary>Show example</summary>
 
-```elisp
+#+begin_src elisp
 (require 'counsel)
 (require 'counsel-extra)
 
 (define-key counsel-mode-map (kbd "C-x P") 'counsel-extra-list-processes)
 (define-key counsel-mode-map (vector 'remap 'execute-extended-command) 'counsel-extra-M-x)
 (define-key counsel-mode-map (kbd "C-x c c") 'counsel-extra-colors-emacs)
-```
-</details>
+#+end_src
 
-#+end_export
+#+html: </details>
+
 
 - =counsel-extra-M-x= - Extra version of =execute-extended-command=.
 - =counsel-extra-list-processes= - Offer completion for =process-list=. The default action is to switch to the process buffer. An extra action allows to delete the selected process.
@@ -93,12 +145,24 @@ These commands are expected to be bound in the ~counsel-mode-map~.
 
 ** File commands
 These commands are expected to be bound in the ~counsel-find-file-map~.
-#+begin_export html
 
-<details>
-  <summary>Show example</summary>
-
-```elisp
+#+html: <details><summary>Show example</summary>
+#+begin_src elisp
+;; use-package example
+(use-package counsel-extra
+  :straight (:repo "KarimAziev/counsel-extra"
+             :type git
+             :host github)
+  :bind ((:map counsel-find-file-map
+          :package counsel
+          ("C-j" . counsel-extra-expand-dir-maybe)
+          ("RET" . counsel-extra-expand-dir-done)
+          ("M-D" . counsel-extra-delete-file)
+          ("C-c M-w" . counsel-extra-copy-file)
+          ("C-c M-r" . counsel-extra-move-file)
+          ("C-c o" . counsel-extra-open-file-other-window)
+          ("C-x d" . counsel-extra-dired))))
+;; or without use-package
 (define-key counsel-find-file-map (kbd "C-j") 'counsel-extra-expand-dir-maybe)
 (define-key counsel-find-file-map (kbd "RET") 'counsel-extra-expand-dir-done)
 (define-key counsel-find-file-map (kbd "M-D") 'counsel-extra-delete-file)
@@ -106,9 +170,11 @@ These commands are expected to be bound in the ~counsel-find-file-map~.
 (define-key counsel-find-file-map (kbd "C-c M-m") 'counsel-extra-move-file)
 (define-key counsel-find-file-map (kbd "C-c o") 'counsel-extra-open-file-other-window)
 (define-key counsel-find-file-map (kbd "C-x d") 'counsel-extra-dired)
-```
-</details>
-#+end_export
+
+#+end_src
+
+
+#+html: </details>
 
 - =M-x counsel-extra-open-file-other-window= - Quit the minibuffer and call =find-file-other-window= action.
 - =M-x counsel-extra-move-file= - Quit the minibuffer and call =counsel-find-file-move= action.
@@ -121,18 +187,12 @@ execute default ivy action and exit minibuffer.
 
 ** Imenu commands
 These commands are expected to be bound in the ~counsel-imenu-map~.
-#+begin_export html
-
-<details>
-  <summary>Show example</summary>
-
-```elisp
+#+html: <details><summary>Show example</summary>
+#+begin_src elisp
 (define-key counsel-imenu-map (kbd "C-c o") 'counsel-extra-imenu-jump-to-item-in-other-window)
 (define-key counsel-imenu-map (kbd "C-c TAB") 'counsel-extra-imenu-insert-cmd)
-
-```
-</details>
-#+end_export
+#+end_src
+#+html: </details>
 
 - =M-x counsel-extra-imenu-insert-cmd= - Quit the minibuffer and insert imenu item.
 - =M-x counsel-extra-imenu-jump-to-item-in-other-window= - Jump to imenu item in other window
@@ -140,19 +200,12 @@ These commands are expected to be bound in the ~counsel-imenu-map~.
 ** Describe commands
 
 This command is supposed to be bound to ~counsel-describe-map~.
-#+begin_export html
 
-<details>
-  <summary>Show example</summary>
-
-```elisp
+#+html: <details><summary>Show example</summary>
+#+begin_src elisp
 (define-key counsel-describe-map (kbd "C-c o") 'counsel-extra-find-symbol-in-other-window)
-
-```
-</details>
-#+end_export
-
-
+#+end_src
+#+html: </details>
 
 - =M-x counsel-extra-find-symbol-in-other-window= - find symbol in other window and exit minibuffer.
 
@@ -164,25 +217,26 @@ This command is supposed to be bound to ~counsel-describe-map~.
 ** Misc commands
 These commands are expected to be bound in the ~ivy-minibuffer-map~.
 
-#+begin_export html
-
-<details>
-  <summary>Show example</summary>
-
-```elisp
+#+html: <details><summary>Show example</summary>
+#+begin_src elisp
 (define-key ivy-minibuffer-map (kbd "C-c C-p") 'counsel-extra-pp-ivy)
 (define-key ivy-minibuffer-map (kbd "C-c C-i") 'counsel-extra-ivy-insert)
 (define-key ivy-minibuffer-map (kbd "C-SPC") 'counsel-extra-ivy-mark)
 (define-key ivy-minibuffer-map (kbd "C-c g g") 'counsel-extra-ivy-browse-url)
 (define-key ivy-minibuffer-map (kbd "M-w") 'counsel-extra-ivy-copy)
-
-
-```
-</details>
-#+end_export
-
+#+end_src
+#+html: </details>
 
 * Customization
 
 *** ~counsel-extra-align-M-x-description~
 Whether to align command descriptions. If nil, don't align, if integer align to those column.
+*** ~counsel-extra-M-X-predicates~
+
+Command filtering predicates for =counsel-extra-M-x= command, that can be switched dynamically with =M-X=.
+
+*** ~counsel-extra-show-modified-time~
+Whether to show file modified time in human readable format when reading filename.
+
+*** ~counsel-extra-align-modified-time~
+Whether to align modified time when reading filename. This option has effect only if =counsel-extra-show-modified-time= is enabled.

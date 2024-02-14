@@ -869,7 +869,9 @@ Argument COLLECTION is a list or array to be used for completion."
                 (when-let ((sym (intern-soft str)))
                   (and (commandp sym)
                        (not (get sym 'byte-obsolete-info))
-                       (not (get sym 'no-counsel-M-x))
+                       (not (get sym 'byte-obsolete-info))
+                       (not (eq (get sym 'command-predicate)
+                                'transient--suffix-only))
                        (cond ((not (bound-and-true-p
                                     read-extended-command-predicate)))
                              ((functionp read-extended-command-predicate)

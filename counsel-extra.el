@@ -89,6 +89,7 @@
 
 
 (require 'ivy)
+(require 'transient)
 (require 'counsel)
 
 (declare-function face-remap-remove-relative "face-remap")

@@ -727,26 +727,29 @@ Argument NAME is the name of the function."
               (sym))
           (setq sym (intern name))
           (when (symbolp sym)
-            (let ((result (concat
-                           name "\s"
-                           (or
-                            (when-let ((key (counsel-extra-annotate-transform-get-function-key
-                                             sym buff)))
-                              key)
-                            "")
-                           (or
-                            (when-let ((doc (counsel-extra-annotate-transform-get-function-doc
-                                             sym)))
-                              (concat
-                               (if counsel-extra-align-M-x-description
-                                   (propertize " " 'display
-                                               `(space :align-to
-                                                       ,(or
-                                                         counsel-extra-align-M-x-description
-                                                         50)))
-                                 " ")
-                               doc))
-                            ""))))
+            (let ((result (string-trim-right
+                           (concat
+                            name "\s"
+                            (or
+                             (when-let ((key (counsel-extra-annotate-transform-get-function-key
+                                              sym buff)))
+                               key)
+                             "")
+                            (or
+                             (when-let ((doc (counsel-extra-annotate-transform-get-function-doc
+                                              sym)))
+                               (concat
+                                (if
+                                    counsel-extra-align-M-x-description
+                                    (propertize " " 'display
+                                                `(space
+                                                  :align-to
+                                                  ,(or
+                                                    counsel-extra-align-M-x-description
+                                                    50)))
+                                  " ")
+                                doc))
+                             "")))))
               (cond ((eq sym major-mode)
                      (propertize result 'face 'font-lock-variable-name-face))
                     ((and

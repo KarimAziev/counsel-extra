@@ -351,6 +351,34 @@ constitutes a word for the purpose of insertion."
             (list item)))
     (apply #'insert parts)))
 
+(defun counsel-extra--get-completion-prefix (item)
+  "Extract prefix for completion from ITEM at point.
+
+Argument ITEM is a string representing the completion item."
+  (let* ((pos (point))
+         (item-chars (reverse (append item nil)))
+         (char (char-before pos)))
+    (catch 'found
+      (while
+          (when-let ((chars (member char item-chars)))
+            (setq item-chars (cdr chars))
+            (let* ((str (mapconcat #'char-to-string (reverse chars) ""))
+                   (beg (- pos
+                           (length str)))
+                   (prefix (and (>= beg (point-min))
+                                (buffer-substring-no-properties beg pos))))
+              (if (and prefix
+                       (string-prefix-p prefix str))
+                  (throw 'found (substring-no-properties item (length prefix)))
+                t)))))))
+
+(defun counsel-extra--insert (item)
+  "Insert ITEM or its completion prefix into the buffer.
+
+Argument ITEM is a string that will be inserted into the buffer."
+  (when item
+    (insert (or (counsel-extra--get-completion-prefix item) item))))
+
 (defun counsel-extra-expand-file-when-exists (name &optional directory)
   "Expand filename NAME to absolute if it exits.
 
@@ -1126,14 +1154,18 @@ it's keymap - `counsel-extra-emacs-colors-map'."
   (interactive)
   (require 'request)
   (require 'json)
-  (let ((word-pattern "-*_~A-Za-z0-9:$"))
-    (ivy-read "search: " #'counsel-search-function
-              :action (lambda (it)
-                        (counsel-extra-insert it "\s" word-pattern)
-                        (insert "\s"))
-              :dynamic-collection t
-              :initial-input (counsel-extra-get-word word-pattern)
-              :caller 'counsel-extra-search)))
+  (let* ((word-pattern "-*_~A-Za-z0-9:$")
+         (input (counsel-extra-get-word word-pattern)))
+    (minibuffer-with-setup-hook
+        (lambda ()
+          (when (and (minibufferp)
+                     (string-empty-p (string-trim
+                                      (minibuffer-contents-no-properties))))
+            (insert input)))
+      (ivy-read "search: " #'counsel-search-function
+                :action #'counsel-extra--insert
+                :dynamic-collection t
+                :caller 'counsel-extra-search))))
 
 ;;;###autoload (autoload 'counsel-extra-color-menu "counsel-extra" nil t)
 (transient-define-prefix counsel-extra-color-menu ()

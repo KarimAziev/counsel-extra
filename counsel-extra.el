@@ -1158,7 +1158,8 @@ it's keymap - `counsel-extra-emacs-colors-map'."
          (input (counsel-extra-get-word word-pattern)))
     (minibuffer-with-setup-hook
         (lambda ()
-          (when (and (minibufferp)
+          (when (and input
+                     (minibufferp)
                      (string-empty-p (string-trim
                                       (minibuffer-contents-no-properties))))
             (insert input)))

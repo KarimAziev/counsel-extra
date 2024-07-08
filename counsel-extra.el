@@ -711,8 +711,7 @@ Also it is configures `ivy-sort-functions-alist'."
     :sort-fn #'counsel-extra-ivy-sort-file-function
     :display-transformer-fn #'counsel-extra-read-file-display-transformer)
   (ivy-add-actions 'read-file-name-internal
-                   '(("o" counsel-extra--expand-dir-maybe-action
-                      "default")))
+                   '(("o" counsel-extra-expand-dir-maybe-action "default")))
   (add-to-list 'ivy-sort-functions-alist
                '(read-file-name-internal
                  . counsel-extra-ivy-sort-file-function)))

@@ -472,6 +472,43 @@ If DIRECTORY is nil or missing, the current buffer's value of
     (funcall #'ivy--mark (ivy-state-current ivy-last)))
   (ivy-next-line))
 
+(defun counsel-extra-expand-dir-maybe-action (curr)
+  "Expand directory or handle file based on its type and extension.
+
+Argument CURR is the current file or directory name to be processed.
+
+Usage example:
+
+\\=(ivy-add-actions \\='read-file-name-internal
+                 (list \\='(\"o\" counsel-extra-expand-dir-maybe-action \"Default\")))"
+  (let ((wnd (active-minibuffer-window)))
+    (when wnd
+      (with-selected-window wnd
+        (let ((dir))
+          (cond ((and
+                  (> ivy--length 0)
+                  (not (string= curr "./"))
+                  (setq dir
+                        (ivy-expand-file-if-directory
+                         curr)))
+                 (ivy--cd dir)
+                 (ivy--exhibit))
+                ((let ((ext (file-name-extension curr)))
+                   (when ext
+                     (let ((extensions (if
+                                           (boundp
+                                            'counsel-find-file-extern-extensions)
+                                           counsel-find-file-extern-extensions
+                                         '("mp4" "mkv" "xlsx" "png" "jpg" "jpeg"
+                                           "webm" "3gp" "MOV"))))
+                       (or (member ext extensions)
+                           (member (downcase ext) extensions)
+                           (member (upcase ext) extensions)))))
+                 (counsel-find-file-extern
+                  (expand-file-name curr ivy--directory)))
+                (t (counsel-extra--preview-file
+                    (expand-file-name curr ivy--directory)))))))))
+
 
 ;;;###autoload
 (defun counsel-extra-expand-dir-maybe ()
@@ -492,30 +529,8 @@ performs one of the following actions based on the file type:
   for a quick look at the file contents without opening it in a permanent buffer
   or leaving the minibuffer."
   (interactive)
-  (let ((curr (ivy-state-current ivy-last))
-        (dir))
-    (cond ((and
-            (> ivy--length 0)
-            (not (string= curr "./"))
-            (setq dir
-                  (ivy-expand-file-if-directory
-                   curr)))
-           (ivy--cd dir)
-           (ivy--exhibit))
-          ((let ((ext (file-name-extension curr)))
-             (when ext
-               (let ((extensions (if
-                                     (boundp
-                                      'counsel-find-file-extern-extensions)
-                                     counsel-find-file-extern-extensions
-                                   '("mp4" "mkv" "xlsx" "png" "jpg" "jpeg"
-                                     "webm" "3gp" "MOV"))))
-                 (or (member ext extensions)
-                     (member (downcase ext) extensions)
-                     (member (upcase ext) extensions)))))
-           (counsel-find-file-extern (expand-file-name curr ivy--directory)))
-          (t (counsel-extra--preview-file
-              (expand-file-name curr ivy--directory))))))
+  (when-let ((curr (ivy-state-current ivy-last)))
+    (counsel-extra-expand-dir-maybe-action curr)))
 
 ;;;###autoload
 (defun counsel-extra-expand-dir-done ()
@@ -695,6 +710,9 @@ Also it is configures `ivy-sort-functions-alist'."
   (ivy-configure 'read-file-name-internal
     :sort-fn #'counsel-extra-ivy-sort-file-function
     :display-transformer-fn #'counsel-extra-read-file-display-transformer)
+  (ivy-add-actions 'read-file-name-internal
+                   '(("o" counsel-extra--expand-dir-maybe-action
+                      "default")))
   (add-to-list 'ivy-sort-functions-alist
                '(read-file-name-internal
                  . counsel-extra-ivy-sort-file-function)))

@@ -314,7 +314,7 @@ Optional argument CHARS is like the inside of a [...] in a regular expression
 except that ] is never special and \ quotes ^, - or \ (but
  not at the end of a range; quoting is never needed there)"
   (unless chars (setq chars "-'*\"_~$A-Za-z0-9:.#\\+"))
-  (when-let ((bounds (if (use-region-p)
+  (when-let* ((bounds (if (use-region-p)
                          (cons (region-beginning) (region-end))
                        (save-excursion
                          (let* ((a (save-excursion
@@ -365,7 +365,7 @@ Argument ITEM is a string representing the completion item."
          (char (char-before pos)))
     (catch 'found
       (while
-          (when-let ((chars (member char item-chars)))
+          (when-let* ((chars (member char item-chars)))
             (setq item-chars (cdr chars))
             (let* ((str (mapconcat #'char-to-string (reverse chars) ""))
                    (beg (- pos
@@ -390,7 +390,7 @@ Argument ITEM is a string that will be inserted into the buffer."
 Second arg DIRECTORY is directory to start with if FILENAME is relative.
 If DIRECTORY is nil or missing, the current buffer's value of
 `default-directory'is used."
-  (when-let ((file (when name
+  (when-let* ((file (when name
                      (if directory
                          (expand-file-name name directory)
                        (expand-file-name name)))))
@@ -533,7 +533,7 @@ performs one of the following actions based on the file type:
   for a quick look at the file contents without opening it in a permanent buffer
   or leaving the minibuffer."
   (interactive)
-  (when-let ((curr (ivy-state-current ivy-last)))
+  (when-let* ((curr (ivy-state-current ivy-last)))
     (counsel-extra-expand-dir-maybe-action curr)))
 
 (defun counsel-extra--ivy-cd (dir)
@@ -849,7 +849,7 @@ SYM should be a symbol."
 (defun counsel-extra-annotate-transform-get-function-doc (sym)
   "Return a stirng with short documentation of symbol SYM or nil.
 SYM should be a symbol."
-  (when-let ((documentation
+  (when-let* ((documentation
               (if (fboundp sym)
                   (documentation sym t)
                 (documentation-property
@@ -881,13 +881,13 @@ Argument NAME is the name of the function."
                            (concat
                             name "\s"
                             (or
-                             (when-let ((key (counsel-extra-annotate-transform-get-function-key
-                                              sym buff)))
+                             (when-let* ((key (counsel-extra-annotate-transform-get-function-key
+                                               sym buff)))
                                key)
                              "")
                             (or
-                             (when-let ((doc (counsel-extra-annotate-transform-get-function-doc
-                                              sym)))
+                             (when-let* ((doc (counsel-extra-annotate-transform-get-function-doc
+                                               sym)))
                                (concat
                                 (if
                                     counsel-extra-align-M-x-description
@@ -1020,7 +1020,7 @@ Argument COLLECTION is a list or array to be used for completion."
             :predicate
             (let ((buf (current-buffer)))
               (lambda (str)
-                (when-let ((sym (intern-soft str)))
+                (when-let* ((sym (intern-soft str)))
                   (and (commandp sym)
                        (not (get sym 'byte-obsolete-info))
                        (not (get sym 'byte-obsolete-info))

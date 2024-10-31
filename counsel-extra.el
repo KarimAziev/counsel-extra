@@ -152,6 +152,11 @@ variable if it is set, including any related custom types defined for it."
   :group 'counsel-extra
   :type '(repeat function))
 
+(defcustom counsel-extra-max-files-sorting-length 1000
+  "Maximum number of files before disabling `counsel-extra-ivy-sort-file-function'."
+  :group 'counsel-extra
+  :type 'integer)
+
 
 (defun counsel-extra--preview-file (file)
   "Preview FILE in other window.
@@ -491,8 +496,7 @@ Usage example:
                   (setq dir
                         (ivy-expand-file-if-directory
                          curr)))
-                 (ivy--cd dir)
-                 (ivy--exhibit))
+                 (counsel-extra--ivy-cd dir))
                 ((let ((ext (file-name-extension curr)))
                    (when ext
                      (let ((extensions (if
@@ -532,14 +536,25 @@ performs one of the following actions based on the file type:
   (when-let ((curr (ivy-state-current ivy-last)))
     (counsel-extra-expand-dir-maybe-action curr)))
 
+(defun counsel-extra--ivy-cd (dir)
+  "Change directory with optional file sorting inhibition based on DIR.
+
+Argument DIR is the directory to change into using Ivy."
+  (if (counsel-extra--file-sorting-in-dir-p dir)
+      (counsel-extra--apply-fn-inhibit-sorting (lambda (&rest args)
+                                                 (apply #'ivy--cd args)
+                                                 (ivy--exhibit))
+                                               dir)
+    (ivy--cd dir)
+    (ivy--exhibit)))
+
 ;;;###autoload
 (defun counsel-extra-expand-dir-done ()
   "Expand directory in Ivy completion or finish selection."
   (interactive)
   (let ((curr (ivy-state-current ivy-last))
         (dir))
-    (if
-        (not (and
+    (if (not (and
               (> ivy--length 0)
               (not
                (string= curr "./"))
@@ -547,8 +562,7 @@ performs one of the following actions based on the file type:
                     (ivy-expand-file-if-directory
                      curr))))
         (ivy-done)
-      (ivy--cd dir)
-      (ivy--exhibit))))
+      (counsel-extra--ivy-cd dir))))
 
 ;;;###autoload
 (defun counsel-extra-dired ()
@@ -708,13 +722,104 @@ Also it is configures `ivy-sort-functions-alist'."
     :occur #'counsel-find-file-occur
     :display-transformer-fn #'counsel-extra-read-file-display-transformer)
   (ivy-configure 'read-file-name-internal
-    :sort-fn #'counsel-extra-ivy-sort-file-function
     :display-transformer-fn #'counsel-extra-read-file-display-transformer)
   (ivy-add-actions 'read-file-name-internal
                    '(("o" counsel-extra-expand-dir-maybe-action "default")))
   (add-to-list 'ivy-sort-functions-alist
                '(read-file-name-internal
-                 . counsel-extra-ivy-sort-file-function)))
+                 . (counsel-extra-ivy-sort-file-function
+                    ivy-sort-file-function-default)))
+  (advice-add 'counsel-find-file
+              :around #'counsel-extra-find-file-advice))
+
+(defun counsel-extra--file-sorting-in-dir-p (dir)
+  "Check if DIR has more files than `counsel-extra-max-files-sorting-length'.
+
+Argument DIR is the directory to check for file accessibility and count."
+  (when (file-accessible-directory-p dir)
+    (> (length (directory-files dir nil nil t))
+       counsel-extra-max-files-sorting-length)))
+
+(defun counsel-extra--apply-fn-inhibit-sorting (fn &rest args)
+  "Temporarily disable sorting in `ivy-sort-functions-alist' and apply FN.
+
+Argument FN is a function to be applied with sorting temporarily inhibited.
+
+Remaining arguments ARGS are the arguments passed to the function FN."
+  (let ((removed-cells))
+    (unwind-protect
+        (progn
+          (dolist (cell ivy-sort-functions-alist)
+            (cond ((and (consp (cdr cell))
+                        (eq 'counsel-extra-ivy-sort-file-function
+                            (cadr cell)))
+                   (setcdr cell (nconc (cddr cell)
+                                       (list (cadr cell))))
+                   (push cell removed-cells))
+                  ((eq 'counsel-extra-ivy-sort-file-function (cdr cell))
+                   (push cell removed-cells)
+                   (setcdr cell #'ivy-sort-file-function-default))))
+          (apply fn args))
+      (dolist (cell removed-cells)
+        (cond ((and (consp (cdr cell))
+                    (not (eq 'counsel-extra-ivy-sort-file-function
+                             (cadr cell))))
+               (delq 'counsel-extra-ivy-sort-file-function (cdr cell))
+               (setcdr cell (nconc
+                             (list 'counsel-extra-ivy-sort-file-function)
+                             (cdr cell))))
+              (t (setcdr cell 'counsel-extra-ivy-sort-file-function)))))))
+
+(defun counsel-extra-find-file-advice (&optional fn initial-input
+                                                 initial-directory &rest args)
+  "Apply FN to find files and possibly disable sorting.
+
+If the target directory contains more files than specified in
+the custom variable `counsel-extra-max-files-sorting-length', the function
+will temporarily remove `counsel-extra-ivy-sort-file-function' from
+`ivy-sort-functions-alist'.
+
+Argument FN is the advised function, which is expected to be
+`counsel-find-file'.
+
+Optional argument INITIAL-INPUT is the initial input for the function.
+
+Optional argument INITIAL-DIRECTORY is the starting directory for the file
+search.
+
+Remaining arguments ARGS are additional arguments passed to the function FN.
+
+This function is intended to be used as an around advice:
+
+\\=(advice-add \\='counsel-find-file
+            :around #\\='counsel-extra-find-file-advice)."
+  (when fn
+    (let ((inhibit-sort-fns))
+      (let ((tramp-archive-enabled nil))
+        (let ((preselect (counsel--preselect-file))
+              (dir (if (eq major-mode 'dired-mode)
+                       (dired-current-directory)
+                     (or initial-directory default-directory))))
+          (when (and preselect (file-exists-p preselect))
+            (let ((directory
+                   (let* ((expanded-filename (expand-file-name preselect))
+                          (parent (file-name-directory (directory-file-name
+                                                        expanded-filename))))
+                     (cond ((or (null parent)
+                                (equal parent expanded-filename))
+                            nil)
+                           ((not (file-name-absolute-p preselect))
+                            (file-relative-name parent))
+                           (t
+                            parent)))))
+              (when (file-accessible-directory-p directory)
+                (setq dir directory))))
+          (setq inhibit-sort-fns (counsel-extra--file-sorting-in-dir-p dir))))
+      (if (not inhibit-sort-fns)
+          (apply fn initial-input initial-directory args)
+        (apply #'counsel-extra--apply-fn-inhibit-sorting fn initial-input
+               initial-directory
+               args)))))
 
 (defvar counsel-extra-M-X-last-command nil)
 (defvar counsel-extra-M-X-externs nil)

@@ -345,7 +345,7 @@ constitutes a word for the purpose of insertion."
                    (car item)
                  item))
     (setq parts
-          (if-let ((current-word (counsel-extra-get-word
+          (if-let* ((current-word (counsel-extra-get-word
                                   (or word-pattern
                                       "-*_~$A-Za-z0-9:#\\+"))))
               (progn
@@ -452,7 +452,7 @@ If DIRECTORY is nil or missing, the current buffer's value of
 (defun counsel-extra-ivy-insert ()
   "Return a string of marked candidates and insert it into the buffer."
   (interactive)
-  (if-let ((marked-str
+  (if-let* ((marked-str
             (when ivy-marked-candidates
               (mapconcat
                (lambda
@@ -870,7 +870,7 @@ SYM should be a symbol."
 Argument NAME is the name of the function."
   (or (ignore-errors
         (let ((buff
-               (if-let ((minw (minibuffer-selected-window)))
+               (if-let* ((minw (minibuffer-selected-window)))
                    (with-selected-window minw
                      (current-buffer))
                  (current-buffer)))

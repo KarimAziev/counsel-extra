@@ -572,8 +572,10 @@ Argument DIR is the directory to change into using Ivy."
                          (ivy-state-current
                           ivy-last)
                          ivy--directory))
-              (parent (file-name-as-directory
-                       (counsel-extra-file-parent filename))))
+              (parent (if (file-accessible-directory-p filename)
+                          filename
+                        (file-name-as-directory
+                         (counsel-extra-file-parent filename)))))
     (when (file-directory-p parent)
       (ivy-quit-and-run
         (funcall #'dired parent)))))

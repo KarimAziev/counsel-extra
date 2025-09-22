@@ -157,6 +157,13 @@ variable if it is set, including any related custom types defined for it."
   :group 'counsel-extra
   :type 'integer)
 
+(defcustom counsel-extra-search-completion-ignore-case t
+  "Case sensitivity of completion insertion in `counsel-extra-search'.
+
+When enabled, allow searches that ignore case when inserting matches."
+  :group 'counsel-extra
+  :type 'boolean)
+
 
 (defun counsel-extra--preview-file (file)
   "Preview FILE in other window.
@@ -356,33 +363,50 @@ constitutes a word for the purpose of insertion."
             (list item)))
     (apply #'insert parts)))
 
-(defun counsel-extra--get-completion-prefix (item)
-  "Extract prefix for completion from ITEM at point.
+(defun counsel-extra--get-completion-prefix (item &optional ignore-case)
+  "Return ITEM's substring after matching completion prefix in buffer.
 
-Argument ITEM is a string representing the completion item."
+Argument ITEM is a string whose characters are processed for completion.
+
+Optional argument IGNORE-CASE determines if character case should be
+ignored during string processing."
   (let* ((pos (point))
-         (item-chars (reverse (append item nil)))
-         (char (char-before pos)))
+         (chr-to-string (lambda (it)
+                          (when it
+                            (let ((str (char-to-string it)))
+                              (if ignore-case
+                                  (downcase str)
+                                str)))))
+         (item-chars (mapcar chr-to-string
+                             (reverse (append item nil))))
+         (char (funcall chr-to-string (char-before pos))))
     (catch 'found
       (while
           (when-let* ((chars (member char item-chars)))
             (setq item-chars (cdr chars))
-            (let* ((str (mapconcat #'char-to-string (reverse chars) ""))
+            (let* ((str (string-join (reverse chars) ""))
                    (beg (- pos
                            (length str)))
                    (prefix (and (>= beg (point-min))
                                 (buffer-substring-no-properties beg pos))))
               (if (and prefix
-                       (string-prefix-p prefix str))
+                       (string-prefix-p (if ignore-case (downcase prefix)
+                                          prefix)
+                                        str))
                   (throw 'found (substring-no-properties item (length prefix)))
                 t)))))))
 
-(defun counsel-extra--insert (item)
-  "Insert ITEM or its completion prefix into the buffer.
+(defun counsel-extra--insert (item &optional ignore-case)
+  "Insert ITEM or its unmatched completion suffix at point.
 
-Argument ITEM is a string that will be inserted into the buffer."
+Argument ITEM is a string to insert and the source for completion.
+
+Optional argument IGNORE-CASE non-nil makes matching case-insensitive."
   (when item
-    (insert (or (counsel-extra--get-completion-prefix item) item))))
+    (insert (or (counsel-extra--get-completion-prefix item
+                                                      ignore-case)
+                item))))
+
 
 (defun counsel-extra-expand-file-when-exists (name &optional directory)
   "Expand filename NAME to absolute if it exits.
@@ -428,10 +452,13 @@ If DIRECTORY is nil or missing, the current buffer's value of
 (defun counsel-extra-ivy-copy ()
   "Copy current ivy candidate without text properties."
   (interactive)
-  (let ((item (ivy-state-current ivy-last)))
-    (kill-new (if (stringp item)
-                  (counsel-extra-strip-text-props item)
-                (counsel-extra-strip-text-props (car item))))))
+  (let* ((item (ivy-state-current ivy-last))
+         (value (if (stringp item)
+                    (counsel-extra-strip-text-props item)
+                  (counsel-extra-strip-text-props (car item)))))
+    (kill-new value)
+    (message "Copied %s" value)
+    value))
 
 
 ;;;###autoload
@@ -1274,7 +1301,9 @@ it's keymap - `counsel-extra-emacs-colors-map'."
 
 ;;;###autoload
 (defun counsel-extra-search ()
-  "Search dynamically with Ivy interface and insert results."
+  "Dynamically query a search engine and insert results using Ivy interface.
+
+See also `counsel-extra-search-completion-ignore-case'."
   (interactive)
   (require 'request)
   (require 'json)
@@ -1287,13 +1316,18 @@ it's keymap - `counsel-extra-emacs-colors-map'."
                      (string-empty-p (string-trim
                                       (minibuffer-contents-no-properties))))
             (insert input)))
-      (ivy-read "search: " #'counsel-search-function
-                :action #'counsel-extra--insert
+      (ivy-read "Search: " #'counsel-search-function
+                :action
+                (lambda (it)
+                  (counsel-extra--insert
+                   it
+                   counsel-extra-search-completion-ignore-case))
                 :dynamic-collection t
                 :caller 'counsel-extra-search))))
 
 ;;;###autoload (autoload 'counsel-extra-color-menu "counsel-extra" nil t)
 (transient-define-prefix counsel-extra-color-menu ()
+  "Menu with colors, faces, and fonts commands."
   [[("c" "emacs colors" counsel-extra-colors-emacs)
     ("w" "web colors" counsel-colors-web)
     ("t" "text properties at point" describe-text-properties)

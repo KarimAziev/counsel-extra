@@ -1299,6 +1299,8 @@ it's keymap - `counsel-extra-emacs-colors-map'."
 (ivy-configure 'counsel-extra-colors-emacs
   :format-fn #'counsel--colors-emacs-format-function)
 
+(defvar counsel--native-json)
+
 ;;;###autoload
 (defun counsel-extra-search ()
   "Dynamically query a search engine and insert results using Ivy interface.
@@ -1309,6 +1311,11 @@ See also `counsel-extra-search-completion-ignore-case'."
   (require 'json)
   (let* ((word-pattern "-*_~A-Za-z0-9:$")
          (input (counsel-extra-get-word word-pattern)))
+    (or (boundp 'counsel--native-json)
+        (setq counsel--native-json
+              (and (fboundp 'json-available-p)
+                   (json-available-p)))
+        (require 'json))
     (minibuffer-with-setup-hook
         (lambda ()
           (when (and input

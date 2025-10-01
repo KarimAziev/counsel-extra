@@ -827,7 +827,8 @@ This function is intended to be used as an around advice:
       (let ((tramp-archive-enabled nil))
         (let ((preselect (counsel--preselect-file))
               (dir (if (eq major-mode 'dired-mode)
-                       (dired-current-directory)
+                       (when (fboundp 'dired-current-directory)
+                         (dired-current-directory))
                      (or initial-directory default-directory))))
           (when (and preselect (file-exists-p preselect))
             (let ((directory

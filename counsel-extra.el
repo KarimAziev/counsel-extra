@@ -1301,6 +1301,7 @@ it's keymap - `counsel-extra-emacs-colors-map'."
   :format-fn #'counsel--colors-emacs-format-function)
 
 (defvar counsel--native-json)
+(defvar counsel--search-backend)
 
 ;;;###autoload
 (defun counsel-extra-search ()
@@ -1308,8 +1309,14 @@ it's keymap - `counsel-extra-emacs-colors-map'."
 
 See also `counsel-extra-search-completion-ignore-case'."
   (interactive)
-  (require 'request)
-  (require 'json)
+  (unless (boundp 'counsel--search-backend)
+    (setq counsel--search-backend
+          ;; `plz' is on GNU ELPA; `request' on NonGNU ELPA.
+          (or
+           (require 'plz nil t)
+           (require 'request)
+           (user-error
+            "Required package `plz' (or `request') not installed"))))
   (let* ((word-pattern "-*_~A-Za-z0-9:$")
          (input (counsel-extra-get-word word-pattern)))
     (or (boundp 'counsel--native-json)

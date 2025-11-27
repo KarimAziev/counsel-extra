@@ -237,7 +237,9 @@ calculate the time difference."
   (let ((filename (expand-file-name str (or ivy--directory
                                             (ivy-state-directory
                                              ivy-last)))))
-    (let ((parts (delete nil `(,str ,(file-symlink-p filename))))
+    (let ((parts (delete nil (list str
+                                   (when (file-symlink-p str)
+                                     (file-truename str)))))
           (mod-time
            (and counsel-extra-show-modified-time
                 (counsel-extra-format-time-readable
@@ -842,7 +844,7 @@ This function is intended to be used as an around advice:
                             (file-relative-name parent))
                            (t
                             parent)))))
-              (when (file-accessible-directory-p directory)
+              (when (and directory (file-accessible-directory-p directory))
                 (setq dir directory))))
           (setq inhibit-sort-fns (counsel-extra--file-sorting-in-dir-p dir))))
       (if (not inhibit-sort-fns)
